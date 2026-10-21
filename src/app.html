@@ -68,7 +68,10 @@ h2{font-size:22px}
 .exrow .t b{display:block;font-weight:600;overflow-wrap:anywhere}
 .chip{display:inline-block;border:1.5px solid var(--accent);color:var(--accent);border-radius:999px;padding:0 10px;font-size:13px;margin:2px 0}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
-.tgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.tgrid label{display:flex;flex-direction:column;gap:4px;min-width:0}.tgrid select{width:100%;min-width:0}
+.tgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.tps{display:grid;grid-template-columns:62px repeat(4,1fr);gap:6px;align-items:center;margin-top:8px}.tps select{width:100%;min-width:0;padding-left:6px;padding-right:2px}
+.qv{display:inline-flex;align-items:baseline;gap:4px;border-radius:10px;padding:2px 8px;background:var(--surface2);cursor:pointer}.qv:active{outline:2px solid var(--accent)}
+.dh{display:flex;align-items:center;justify-content:center;width:30px;align-self:stretch;margin-left:-6px;color:var(--muted);touch-action:none;cursor:grab;flex:none}.dh svg{width:18px;height:18px}
+[data-drag]{transition:transform .15s ease}[data-drag].dragging{transition:none}.tgrid label{display:flex;flex-direction:column;gap:4px;min-width:0}.tgrid select{width:100%;min-width:0}
 .mchip{background:var(--surface2);border-radius:999px;padding:3px 12px;font-size:13px}
 .fab{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:5;background:var(--accent);color:var(--on-accent);border-radius:16px;min-height:52px;padding:0 20px;display:flex;align-items:center;gap:8px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.28)}
 /* nav */
@@ -686,6 +689,9 @@ function bmr() {
 function rate() { const b = bmr(); return b ? b.v / 24 : (S.profile.weightKg || 70); }
 function kcalOf(tot) { const r = rate(); let k = 0; for (const p in MET) k += MET[p] * r * ((tot[p] || 0) / 3600000); return Math.round(k); }
 /* cadência: excêntrica-pausa alongado-concêntrica-pausa contraído (X = explosiva) */
+function applyRest(e, j, f) { const s = e.sets[j]; let n = 0; e.sets.forEach((x, k) => { if (k > j && !x.done && (!x.warm || s.warm)) { x[f] = s[f]; n++; } }); return n; }
+function prepOf(e) { const v = e ? (e.prep ?? (e.cfg && e.cfg.prep)) : null; return (v != null && v !== '') ? Math.max(0, +v) : (S.settings.prep ? +S.settings.prepSec || 0 : 0); }
+const prepPh = () => prepOf(curEx()) > 0 ? 'prepare' : 'exec';
 const TEMPO_PRE = [['2-0-2-0', 'Controlada'], ['3-0-1-0', 'Hipertrofia'], ['4-0-1-0', 'Excêntrica lenta'], ['3-1-1-0', 'Pausa no alongamento'], ['2-0-1-2', 'Pico de contração'], ['2-0-X-0', 'Explosiva']];
 function tParse(t) { const a = String(t || '').split('-'); if (a.length !== 4) return null; return a.map(x => String(x).toUpperCase() === 'X' ? 'X' : Math.max(0, Math.min(10, Math.round(+x) || 0))); }
 const tSec = t => (tParse(t) || [2, 0, 2, 0]).reduce((a, x) => a + (x === 'X' ? 1 : x), 0);
@@ -702,15 +708,27 @@ function tempoBlock(p, v, inh, inhName, bare) {
   <p class="muted small" id="${p}_tsum" style="margin:6px 0 0">${tSum(a.join('-'))}</p>
   <p class="muted small" style="margin:4px 0 0">Ordem usada nas fichas: excêntrica, pausa, concêntrica, pausa. Excêntrica é a fase em que o músculo alonga controlando o peso (na puxada e na remada, a volta). X = concêntrica o mais rápida possível.</p></div></div>`;
 }
+const tOpts = (k, cur) => (k === 2 ? ['X'] : []).concat([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).map(n => `<option value="${n}" ${String(cur) === String(n) ? 'selected' : ''}>${n}</option>`).join('');
+const tRow = (id, t, lbl) => { const a = tParse(t) || [2, 0, 2, 0]; return `<div class="tps"><span class="small">${lbl}</span>${a.map((x, k) => `<select id="${id}_${k}" aria-label="${lbl}, ${['excêntrica', 'pausa alongado', 'concêntrica', 'pausa contraído'][k]}">${tOpts(k, x)}</select>`).join('')}</div>`; };
+const tRowRead = id => [0, 1, 2, 3].map(k => val(id + '_' + k)).join('-');
+function renderTPer() {
+  const chk = document.getElementById('e_tper'), box = document.getElementById('tperlist'); if (!chk || !box) return;
+  if (!chk.checked) { box.innerHTML = ''; return; }
+  const n = Math.max(1, Math.min(20, Math.round(num(val('e_sets')) || 1))), base = readTempo('e') || (document.querySelector('#e_tinh + b') || {}).textContent || S.settings.tempo, old = [];
+  for (let k = 0; k < n; k++) old.push(document.getElementById('e_ts' + k + '_0') ? tRowRead('e_ts' + k) : ((editCfg && editCfg.tempoSets && editCfg.tempoSets[k]) || base));
+  box.innerHTML = `<div class="tps muted small" style="margin-top:4px"><span></span><span>Exc.</span><span>Pausa</span><span>Conc.</span><span>Pausa</span></div>` + old.map((t, k) => tRow('e_ts' + k, t, 'Série ' + (k + 1))).join('');
+}
+function readTPer(n) { const a = []; for (let k = 0; k < n; k++) a.push(document.getElementById('e_ts' + k + '_0') ? tRowRead('e_ts' + k) : ''); return a; }
 function readTempo(p) { const c = document.getElementById(p + '_tinh'); if (c && c.checked) return ''; return [0, 1, 2, 3].map(k => val(p + '_t' + k)).join('-'); }
 function tRefresh(p) { const el = document.getElementById(p + '_tsum'); if (el) el.textContent = tSum([0, 1, 2, 3].map(k => val(p + '_t' + k)).join('-')); if (p === 'sf') { S.settings.tempo = readTempo('sf'); persist(); } }
 function est(w) {
-  const st = S.settings, pre = st.prep ? st.prepSec : 0, r = rate(), chg = +st.exChange || 0;
+  const st = S.settings, r = rate(), chg = +st.exChange || 0;
   let exec = 0, prep = 0, rest = 0, load = 0;
   w.exercises.forEach((e, i) => {
     const lib = getEx(e.exId), n = e.sets, rs = e.rest ?? st.defaultRest;
-    exec += n * (lib.type === 'time' ? e.secs : avg(e.repsMin, e.repsMax) * tSec(tempoOf(e, w)));
-    prep += n * pre;
+    const t0 = tempoOf(e, w);
+    for (let k = 0; k < n; k++) exec += lib.type === 'time' ? e.secs : avg(e.repsMin, e.repsMax) * tSec((e.tempoSets && e.tempoSets[k]) || t0);
+    prep += n * prepOf(e);
     rest += Math.max(0, n - 1) * rs + (i < w.exercises.length - 1 ? chg : 0);
     if (lib.type !== 'time') load += n * avg(e.repsMin, e.repsMax) * avg(e.kgMin, e.kgMax);
   });
@@ -864,7 +882,7 @@ function homeView() {
 function workoutView() {
   const f = findW(view.id); if (!f) return '<div class="empty">Treino não encontrado.</div>';
   const {w} = f, e = est(w), m = musclesOf(w), gt = groupTotals(w.exercises);
-  const rows = w.exercises.map((x, i) => { const l = getEx(x.exId); return `<div class="exrow" data-drag="w" data-i="${i}">${tileOf(l).replace('tile sm', 'tile')}<div class="t" data-act="editEx" data-i="${i}" style="cursor:pointer"><b>${esc(l.name)}</b>${(x.variant || x.grip) ? `${x.variant ? `<span class="chip">${esc(x.variant)}</span> ` : ''}${x.grip ? `<span class="chip">Pegada ${esc(x.grip.toLowerCase())}</span>` : ''}<br>` : ''}<span class="muted small num">${exLine(x)}${l.type !== 'time' ? ' • RIR ' + (new Set(x.rir).size > 1 ? x.rir.join('/') : x.rir[0]) : ''}</span></div><button class="ib" data-act="exMenu" data-i="${i}" aria-label="Opções do exercício">${ic('more')}</button></div>`; }).join('');
+  const rows = w.exercises.map((x, i) => { const l = getEx(x.exId); return `<div class="exrow" data-drag="w" data-i="${i}"><span class="dh" data-dh aria-label="Segure e arraste para mudar a ordem"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>${tileOf(l).replace('tile sm', 'tile')}<div class="t" data-act="editEx" data-i="${i}" style="cursor:pointer"><b>${esc(l.name)}</b>${(x.variant || x.grip) ? `${x.variant ? `<span class="chip">${esc(x.variant)}</span> ` : ''}${x.grip ? `<span class="chip">Pegada ${esc(x.grip.toLowerCase())}</span>` : ''}<br>` : ''}<span class="muted small num">${exLine(x)}${l.type !== 'time' ? ' • RIR ' + (new Set(x.rir).size > 1 ? x.rir.join('/') : x.rir[0]) : ''}</span></div><button class="ib" data-act="exMenu" data-i="${i}" aria-label="Opções do exercício">${ic('more')}</button></div>`; }).join('');
   return `<div class="top"><button class="ib" data-act="back" aria-label="Voltar">${ic('back')}</button><h1>${esc(w.name)}</h1><button class="ib" data-act="wMenu" aria-label="Opções do treino">${ic('more')}</button></div>
   <div class="chips" style="margin:-2px 0 12px;align-items:center">${(w.groups || []).map(g => `<span class="mchip">${g}</span>`).join('') || '<span class="muted small">Nenhum grupo muscular definido</span>'}<button class="mchip" data-act="editWG" style="color:var(--accent)">Editar grupos</button></div>
   <button class="muted small" data-act="wdOpen" style="display:block;margin:-4px 0 12px;text-align:left">Padrão${f.w.defaults ? ' do treino' : ' da rotina'}: ${wdef(f.r, f.w).sets} séries · ${wdef(f.r, f.w).repsMin}–${wdef(f.r, f.w).repsMax} reps · ${wdef(f.r, f.w).rest} s de descanso · cadência ${tempoOf({}, f.w)} <span style="color:var(--accent)">· alterar</span></button>
@@ -1385,23 +1403,44 @@ function natInit() {
   natInitP = (async () => {
     try {
       const p = await ln.checkPermissions(); if (p.display !== 'granted') await ln.requestPermissions();
-      await ln.createChannel({id: 'ferro-treino', name: 'Treino em andamento', description: 'Fase, série e carga do treino', importance: 2, vibration: false, visibility: 1});
+      if (!natP('FerroNotif')) await ln.createChannel({id: 'ferro-treino', name: 'Treino em andamento', description: 'Fase, série e carga do treino', importance: 2, vibration: false, visibility: 1});
       await ln.createChannel({id: 'ferro-alarme', name: 'Fim do cronômetro', description: 'Avisa quando o descanso ou a preparação termina', importance: 5, vibration: true, visibility: 1});
       await ln.registerActionTypes({types: [
         {id: 'exec', actions: [{id: 'back', title: 'Voltar'}, {id: 'pause', title: 'Pausar'}, {id: 'next', title: 'Série feita'}]},
         {id: 'rest', actions: [{id: 'plus', title: '+15 s'}, {id: 'pause', title: 'Pausar'}, {id: 'next', title: 'Pular'}]},
         {id: 'prep', actions: [{id: 'back', title: 'Voltar'}, {id: 'pause', title: 'Pausar'}, {id: 'next', title: 'Começar'}]},
         {id: 'paused', actions: [{id: 'back', title: 'Voltar'}, {id: 'pause', title: 'Continuar'}, {id: 'next', title: 'Próximo'}]}]});
-      ln.addListener('localNotificationActionPerformed', a => {
-        if (!run || run.phase === 'done') return;
-        const id = a && a.actionId;
-        if (id === 'next') runNext(); else if (id === 'back') runBack(); else if (id === 'pause') H.pauseBtn(); else if (id === 'plus') H.restPlus();
-        natLast = ''; natSync(); if (view.n === 'run') render();
-      });
+      ln.addListener('localNotificationActionPerformed', a => natAct(a && a.actionId));
+      const fn = natP('FerroNotif'); if (fn) fn.addListener('action', a => natAct(a && a.action));
       return true;
     } catch (e) { return false; }
   })();
   return natInitP;
+}
+function natAct(id) {
+  if (!run || run.phase === 'done') return;
+  if (id === 'next') runNext(); else if (id === 'back') runBack(); else if (id === 'pause') H.pauseBtn(); else if (id === 'plus') H.restPlus();
+  natLast = ''; natSync(); if (view.n === 'run') render();
+}
+const NCOL = {warmup: '#46BF78', prepare: '#E6B422', exec: '#F0654D', rest: '#4D96E8', paused: '#97A3B0'};
+function natPayload() {
+  const ex = curEx(), st = ex.sets[run.setIdx] || {}, v = phaseView(), P = run.phase, pz = !!run.pausedAt;
+  const label = pz ? 'PAUSADO' : {warmup: 'AQUECIMENTO', prepare: 'PREPARE-SE', exec: ex.type === 'time' ? 'SEGURE A POSIÇÃO' : 'EXECUTANDO', rest: 'DESCANSO · PRÓXIMA SÉRIE'}[P] || '';
+  const load = ex.type === 'time' ? `${st.secs} s` : `${fmtN(st.reps)} reps  ·  ${fmtN(st.kg)} kg  ·  ${f1(st.kg * LB)} lb  ·  RIR ${st.rir ?? S.settings.defaultRir}`;
+  const nx = nextTargetFrom(run.exIdx), nxName = nx && nx[0] !== run.exIdx ? run.exs[nx[0]].name : '';
+  const tp = st.tempo || ex.tempo;
+  const line2 = [tp && ex.type !== 'time' ? `Cadência ${tp}` : '', `Exercício ${run.exIdx + 1} de ${run.exs.length}`, nxName && ex.sets.filter(x => !x.done).length <= 1 ? `depois: ${nxName}` : ''].filter(Boolean).join('  ·  ');
+  const A = {back: {id: 'back', label: 'Voltar', icon: 'back'}, pause: {id: 'pause', label: 'Pausar', icon: 'pause'}};
+  const actions = pz ? [A.back, {id: 'pause', label: 'Continuar', icon: 'play', primary: true}, {id: 'next', label: 'Próximo', icon: 'skip'}]
+    : P === 'rest' ? [{id: 'plus', label: '+15 s', icon: 'plus'}, A.pause, {id: 'next', label: 'Pular', icon: 'skip', primary: true}]
+    : P === 'exec' ? [A.back, A.pause, {id: 'next', label: 'Feito', icon: 'check', primary: true}]
+    : P === 'prepare' ? [A.back, A.pause, {id: 'next', label: 'Começar', icon: 'play', primary: true}]
+    : [A.pause, {id: 'next', label: 'Começar', icon: 'play', primary: true}];
+  const o = {label, color: NCOL[pz ? 'paused' : P] || '#F0654D', title: exLabel(ex), line1: `Série ${run.setIdx + 1} de ${ex.sets.length}  ·  ${load}`, line2, actions};
+  if (v.count) { o.chrono = 'down'; if (pz) o.shownMs = Math.max(0, v.rem); else o.endAt = Math.round((Date.now() + v.rem) / 1000) * 1000; }
+  else { o.chrono = 'up'; if (pz) o.shownMs = v.el; else o.startAt = run.phaseStart; }
+  o.paused = pz;
+  return o;
 }
 function natSync() {
   if (!NAT) return;
@@ -1410,10 +1449,17 @@ function natSync() {
     const ln = natP('LocalNotifications'), ka = natP('KeepAwake');
     try {
       if (!run || run.phase === 'done') {
-        if (natLast) { natLast = ''; natAlarm = 0; await ln.cancel({notifications: [{id: 1}, {id: 2}]}); try { ka && ka.allowSleep(); } catch (e) {} }
+        if (natLast) { natLast = ''; natAlarm = 0; await ln.cancel({notifications: [{id: 1}, {id: 2}]}); try { const fn = natP('FerroNotif'); fn && await fn.hide(); } catch (e) {} try { ka && ka.allowSleep(); } catch (e) {} }
         return;
       }
       if (!(await natInit())) return;
+      const fn = natP('FerroNotif');
+      if (fn) {
+        const o = natPayload(), key = JSON.stringify(o);
+        if (key !== natLast) { natLast = key; await fn.show(o); try { ka && ka.keepAwake(); } catch (e) {} }
+        const v = phaseView(); natAlarmSync((!run.pausedAt && v.count) ? Date.now() + v.rem : 0);
+        return;
+      }
       const ex = curEx(), st = ex.sets[run.setIdx] || {}, ph = {warmup: 'Aquecimento', prepare: 'Prepare-se', exec: 'Executando', rest: 'Descanso'}[run.phase] || '';
       const v = phaseView(), end = (!run.pausedAt && v.count) ? Date.now() + v.rem : 0;
       const hm = t => new Date(t).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit', second: '2-digit'});
@@ -1463,9 +1509,9 @@ function buildRunEx(cfg) {
   const sets = [];
   for (let i = 0; i < cfg.sets; i++) {
     const l = last && last.length ? last[Math.min(i, last.length - 1)] : null;
-    sets.push(lib.type === 'time' ? {secs: cfg.secs, done: false} : {reps: l ? l.reps : cfg.repsMax, kg: l ? l.kg : cfg.kgMin, rir: (cfg.rir && cfg.rir[i] != null) ? cfg.rir[i] : S.settings.defaultRir, done: false});
+    sets.push(lib.type === 'time' ? {secs: cfg.secs, done: false} : {reps: l ? l.reps : cfg.repsMax, kg: l ? l.kg : cfg.kgMin, rir: (cfg.rir && cfg.rir[i] != null) ? cfg.rir[i] : S.settings.defaultRir, tempo: (cfg.tempoSets && cfg.tempoSets[i]) || '', done: false});
   }
-  return {cfg, exId: cfg.exId, name: lib.name, variant: cfg.variant, grip: cfg.grip || '', type: lib.type, primary: lib.primary, secondary: lib.secondary, sets, note: '', rest: cfg.rest ?? S.settings.defaultRest, tempo: lib.type === 'time' ? '' : (cfg.tempo || cfg.tempoW || (run && run.workoutId && findW(run.workoutId) ? tempoOf({}, findW(run.workoutId).w) : S.settings.tempo))};
+  return {cfg, exId: cfg.exId, name: lib.name, variant: cfg.variant, grip: cfg.grip || '', type: lib.type, primary: lib.primary, secondary: lib.secondary, sets, note: '', rest: cfg.rest ?? S.settings.defaultRest, prep: (cfg.prep != null && cfg.prep !== '') ? +cfg.prep : null, tempo: lib.type === 'time' ? '' : (cfg.tempo || cfg.tempoW || (run && run.workoutId && findW(run.workoutId) ? tempoOf({}, findW(run.workoutId).w) : S.settings.tempo))};
 }
 let audio = null;
 function beep(n = 1) {
@@ -1481,7 +1527,7 @@ function buzz() { if (S.settings.vibrate) try { navigator.vibrate && navigator.v
 function startRun(w, rname) {
   const tw = tempoOf({}, w), exs = w.exercises.map(c => buildRunEx(Object.assign({}, c, {tempoW: tw})));
   const warm = S.settings.warmup && exs[0] && exs[0].type !== 'time';
-  run = {id: uid(), workoutId: w.id, name: w.name, routine: rname, startedAt: Date.now(), exs, exIdx: 0, setIdx: 0, warm: !!warm, phase: warm ? 'warmup' : (S.settings.prep ? 'prepare' : 'exec'), phaseStart: Date.now(), pausedAt: null, tot: {warmup: 0, prepare: 0, exec: 0, rest: 0}, restTotal: 0, fired: 0};
+  run = {id: uid(), workoutId: w.id, name: w.name, routine: rname, startedAt: Date.now(), exs, exIdx: 0, setIdx: 0, warm: !!warm, phase: warm ? 'warmup' : (prepOf(exs[0]) > 0 ? 'prepare' : 'exec'), phaseStart: Date.now(), pausedAt: null, tot: {warmup: 0, prepare: 0, exec: 0, rest: 0}, restTotal: 0, fired: 0};
   persistRun(); beep(0); mediaStart(); natInit().then(natSync);
   try { navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {}
   stack = [{n: 'home'}]; view = {n: 'run'}; render(); window.scrollTo(0, 0);
@@ -1490,7 +1536,7 @@ function setPhase(p) {
   if (run.phase !== 'done') run.tot[run.phase] += elapsed();
   const prev = run.phase; run.phase = p; run.phaseStart = Date.now(); run.pausedAt = null; run.fired = 0;
   if (p === 'exec' && prev !== 'exec' && !run.sndDone) startSound();
-  if (p === 'prepare' && S.settings.sound && S.settings.countMode !== 'off' && audio) { try { ac(); holdAudio(S.settings.prepSec * 1000 + 3500); } catch (e) {} }
+  if (p === 'prepare' && S.settings.sound && S.settings.countMode !== 'off' && audio) { try { ac(); holdAudio(prepOf(curEx()) * 1000 + 3500); } catch (e) {} }
   run.sndDone = false;
   if (p === 'rest') run.restTotal = (curEx() ? curEx().rest : S.settings.defaultRest) * 1000;
   persistRun();
@@ -1504,7 +1550,7 @@ function finishRun() { setPhase('done'); run.endedAt = Date.now(); persistRun();
 function runNext() {
   if (!run || run.phase === 'done') return;
   const ph = run.phase;
-  if (ph === 'warmup') setPhase(S.settings.prep ? 'prepare' : 'exec');
+  if (ph === 'warmup') setPhase(prepPh());
   else if (ph === 'prepare') setPhase('exec');
   else if (ph === 'exec') {
     const s = curEx().sets[run.setIdx]; s.done = true; s.actual = Math.round(elapsed() / 1000);
@@ -1515,12 +1561,12 @@ function runNext() {
     run.exIdx = t[0]; run.setIdx = t[1];
     run.exs[t[0]].restFrom = restFor;
     setPhase('rest'); run.restTotal = restFor * 1000;
-  } else if (ph === 'rest') setPhase(S.settings.prep ? 'prepare' : 'exec');
+  } else if (ph === 'rest') setPhase(prepPh());
   persistRun(); render();
 }
 function runBack() {
   if (!run) return;
-  if (run.phase === 'exec') { setPhase(S.settings.prep ? 'prepare' : 'exec'); persistRun(); render(); }
+  if (run.phase === 'exec') { setPhase(prepPh()); persistRun(); render(); }
   else if (run.phase === 'rest' && run.prevPtr) { const [i, j] = run.prevPtr; run.exIdx = i; run.setIdx = j; run.exs[i].sets[j].done = false; run.prevPtr = null; run.sndDone = true; setPhase('exec'); persistRun(); render(); toast('Série reaberta'); }
   else if (run.phase === 'prepare' || run.phase === 'rest') { setPhase(run.phase); persistRun(); render(); }
 }
@@ -1529,7 +1575,7 @@ function phaseView() {
   const color = {warmup: 'var(--warmup)', prepare: 'var(--prepare)', exec: 'var(--exec)', rest: 'var(--rest)'}[P] || 'var(--accent)';
   let big = '', cap = '', prog = 0, count = false, rem = 0;
   if (P === 'warmup') { big = 'Vamos lá!'; cap = `Faça o aquecimento <span class="num">${ic('timer', '')}</span>`; }
-  if (P === 'prepare') { count = true; const total = S.settings.prepSec * 1000; rem = Math.max(0, total - el); prog = el / total; }
+  if (P === 'prepare') { count = true; const total = Math.max(1, prepOf(ex)) * 1000; rem = Math.max(0, total - el); prog = el / total; }
   if (P === 'rest') { count = true; rem = Math.max(0, run.restTotal - el); prog = el / run.restTotal; }
   if (P === 'exec') { if (ex.type === 'time') { count = true; const total = s.secs * 1000; rem = Math.max(0, total - el); prog = el / total; } }
   return {P, color, big, count, rem, prog: Math.min(1, prog), el, s, ex};
@@ -1551,8 +1597,9 @@ function runView() {
   const small = 'width="18" height="18" style="fill:none;stroke:currentColor;stroke-width:2"';
   const sets = ex.sets.map((s, i) => {
     const cls = s.done ? 'done' : (i === run.setIdx ? 'cur' : '');
-    const body = ex.type === 'time' ? `<span>${s.secs}</span><small>s</small>` : `<span>${fmtN(s.reps)}</span><small>reps</small><span style="opacity:.4">·</span><span>${fmtN(s.kg)}</span><small>kg</small><small class="muted">${f1(s.kg * LB)} lb</small><small style="border:1px solid var(--line);border-radius:999px;padding:1px 8px">RIR ${s.rir ?? S.settings.defaultRir}</small>`;
-    return `<div class="setline ${cls}"><span class="sn">${s.done ? ic('ok').replace('<svg', '<svg width="18" height="18" style="fill:none;stroke:#fff;stroke-width:3"') : i + 1}</span><button class="setcard" style="flex-wrap:wrap;gap:4px 10px;padding:6px" data-act="editSet" data-i="${run.exIdx}" data-j="${i}" aria-label="Editar série ${i + 1}">${body}</button>${ex.type === 'time' ? '' : `<button class="wtag ${s.warm ? 'on' : ''}" data-act="togWarm" data-i="${run.exIdx}" data-j="${i}" aria-pressed="${!!s.warm}" aria-label="Série de aquecimento">${s.warm ? 'Aquec.' : 'Válida'}</button>`}</div>`;
+    const qa = f => `class="qv" data-act="qEdit" data-i="${run.exIdx}" data-j="${i}" data-f="${f}"`;
+    const body = ex.type === 'time' ? `<span ${qa('secs')}><span>${s.secs}</span><small>s</small></span>` : `<span ${qa('reps')} aria-label="Editar repetições"><span>${fmtN(s.reps)}</span><small>reps</small></span><span ${qa('kg')} aria-label="Editar carga em kg"><span>${fmtN(s.kg)}</span><small>kg</small></span><span ${qa('lb')} aria-label="Editar carga em libras"><small>${f1(s.kg * LB)} lb</small></span><small style="border:1px solid var(--line);border-radius:999px;padding:1px 8px">RIR ${s.rir ?? S.settings.defaultRir}</small>${s.tempo && s.tempo !== ex.tempo ? `<small style="border:1px solid var(--line);border-radius:999px;padding:1px 8px">${s.tempo}</small>` : ''}`;
+    return `<div class="setline ${cls}"><span class="sn">${s.done ? ic('ok').replace('<svg', '<svg width="18" height="18" style="fill:none;stroke:#fff;stroke-width:3"') : i + 1}</span><div class="setcard" role="button" tabindex="0" style="flex-wrap:wrap;gap:6px 8px;padding:6px;cursor:pointer" data-act="editSet" data-i="${run.exIdx}" data-j="${i}" aria-label="Detalhes da série ${i + 1}">${body}</div>${ex.type === 'time' ? '' : `<button class="wtag ${s.warm ? 'on' : ''}" data-act="togWarm" data-i="${run.exIdx}" data-j="${i}" aria-pressed="${!!s.warm}" aria-label="Série de aquecimento">${s.warm ? 'Aquec.' : 'Válida'}</button>`}</div>`;
   }).join('');
   const list = run.exs.map((e, i) => {
     const done = e.sets.every(s => s.done), tag = i === run.exIdx ? '<span class="tag cur">Em execução</span><br>' : (i === nxt ? '<span class="tag nxt">Próximo</span><br>' : '');
@@ -1561,7 +1608,7 @@ function runView() {
     const right = run.reorder
       ? `<button class="ib" data-act="mvRun" data-i="${i}" data-dir="-1" aria-label="Subir" ${i === 0 ? 'disabled' : ''}>${ic('up')}</button><button class="ib" data-act="mvRun" data-i="${i}" data-dir="1" aria-label="Descer" ${i === run.exs.length - 1 ? 'disabled' : ''}>${ic('down')}</button>`
       : `<span class="chk ${done ? 'on' : ''}">${done ? ic('ok') : ''}</span><button class="ib" data-act="runExMenu" data-i="${i}" aria-label="Opções">${ic('more')}</button>`;
-    return `<div class="exrow" data-drag="r" data-i="${i}">${left}${right}</div>`;
+    return `<div class="exrow" data-drag="r" data-i="${i}">${run.reorder ? '' : '<span class="dh" data-dh aria-label="Segure e arraste para mudar a ordem"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>'}${left}${right}</div>`;
   }).join('');
   return `<div class="runhead"><button class="ib" data-act="closeRun" aria-label="Encerrar treino">${ic('x')}</button><button class="pillbtn" data-act="runStats">Estatísticas</button></div>
   <div class="lbl">Exercício ${run.exIdx + 1}/${run.exs.length}</div>
@@ -1605,7 +1652,7 @@ function saveRun() {
   const r = runStats(), hr = Math.round(num(val('hr_avg'))) || null, kh = kcalHR(hr, r.time);
   if (kh != null) r.kcal = kh;
   const s = {id: run.id, date: new Date(run.startedAt).toISOString(), name: run.name, routine: run.routine, durMs: r.time, tot: r.tot, kcal: r.kcal, hr, sets: r.done, reps: r.reps, volume: r.vol,
-    exercises: run.exs.map(e => ({exId: e.exId, name: e.name, variant: e.variant, grip: e.grip, tempo: e.tempo || '', note: e.note, sets: e.sets.map(x => ({reps: x.reps, kg: x.kg, rir: x.rir, secs: x.secs, actual: x.actual, done: x.done, warm: !!x.warm}))}))};
+    exercises: run.exs.map(e => ({exId: e.exId, name: e.name, variant: e.variant, grip: e.grip, tempo: e.tempo || '', note: e.note, sets: e.sets.map(x => ({reps: x.reps, kg: x.kg, rir: x.rir, tempo: x.tempo || '', secs: x.secs, actual: x.actual, done: x.done, warm: !!x.warm}))}))};
   sessions.unshift(s); persistSessions(); cloudSession(s);
   run = null; persistRun(); stack = []; view = {n: 'history'}; render(); toast('Treino salvo');
   if (!inClaude()) { modal(`<h2>Fazer backup agora?</h2><p class="muted" style="margin:0">Gera um arquivo com tudo (rotinas, histórico, corpo). Você pode mandar para você mesmo no WhatsApp ou salvar no Drive quando tiver sinal.</p><div style="display:flex;gap:10px"><button class="btn" style="flex:1" data-act="closeModal">Agora não</button><button class="btn primary" style="flex:1" data-act="fileSave">Compartilhar backup</button></div>`); return; }
@@ -1723,16 +1770,18 @@ function exEditor(cfg, isNew, i) {
   const l = getEx(cfg.exId), time = l.type === 'time', per = new Set(cfg.rir || []).size > 1;
   modal(`<h2>${esc(l.name)}</h2>
   <div class="fr"><div class="field"><label for="e_sets" class="lbl">Séries</label><input type="number" inputmode="numeric" id="e_sets" value="${cfg.sets}" data-act-change="rirSets"></div><div class="field"><label for="e_rest" class="lbl">Descanso (s)</label><input type="number" inputmode="numeric" id="e_rest" value="${cfg.rest ?? S.settings.defaultRest}"></div></div>
+  <div class="field"><label for="e_prep" class="lbl">Preparo antes de cada série (s)</label><input type="number" inputmode="numeric" id="e_prep" value="${cfg.prep != null && cfg.prep !== '' ? cfg.prep : ''}" placeholder="Padrão dos Ajustes: ${S.settings.prep ? S.settings.prepSec + ' s' : 'desligado'}"><span class="muted small">Deixe vazio para usar o padrão. 0 = sem preparo neste exercício.</span></div>
   ${time ? `<div class="field"><label for="e_secs" class="lbl">Tempo por série (s)</label><input type="number" inputmode="numeric" id="e_secs" value="${cfg.secs}"></div>` :
   `<div class="fr"><div class="field"><label for="e_rmin" class="lbl">Reps mín.</label><input type="number" inputmode="numeric" id="e_rmin" value="${cfg.repsMin}"></div><div class="field"><label for="e_rmax" class="lbl">Reps máx.</label><input type="number" inputmode="numeric" id="e_rmax" value="${cfg.repsMax}"></div></div>
   <div style="display:flex;flex-direction:column;gap:12px"><div class="field"><span class="lbl">Carga mínima</span>${cvg('k_min', null, cfg.kgMin, ['kg', 'lb'], {kg: 'e_kmin', lb: 'e_kminlb'})}</div><div class="field"><span class="lbl">Carga máxima</span>${cvg('k_max', null, cfg.kgMax, ['kg', 'lb'], {kg: 'e_kmax', lb: 'e_kmaxlb'})}</div></div>
   <div class="field"><label for="e_rir" class="lbl">RIR (repetições na reserva)</label><select id="e_rir">${rirOpts((cfg.rir && cfg.rir[0] != null) ? cfg.rir[0] : S.settings.defaultRir)}</select></div>
   <label class="chkrow"><input type="checkbox" id="e_rirper" ${per ? 'checked' : ''} data-act-change="rirToggle"> Definir RIR por série</label><div id="rirlist"></div>
-  ${tempoBlock('e', cfg.tempo || '', editFor === 'run' ? (cfg.tempoW || S.settings.tempo) : (view.id && findW(view.id) ? tempoOf({}, findW(view.id).w) : S.settings.tempo), 'o padrão do treino')}`}
+  ${tempoBlock('e', cfg.tempo || '', editFor === 'run' ? (cfg.tempoW || S.settings.tempo) : (view.id && findW(view.id) ? tempoOf({}, findW(view.id).w) : S.settings.tempo), 'o padrão do treino')}
+  <label class="chkrow"><input type="checkbox" id="e_tper" ${(cfg.tempoSets || []).some(Boolean) ? 'checked' : ''} data-act-change="tPer"> Cadência diferente em cada série</label><div id="tperlist"></div>`}
   ${GRIPS[cfg.exId] ? `<div class="field"><label for="e_grip" class="lbl">Pegada</label><select id="e_grip">${selOpts([['', 'Não definida']].concat(GRIPS[cfg.exId].map(g => [g, g])), cfg.grip || '')}</select></div>` : ''}
   <div class="field"><label for="e_var" class="lbl">Variação (ex.: Corda, Barra)</label><input type="text" id="e_var" value="${esc(cfg.variant || '')}" maxlength="30"></div>
   <button class="btn primary block" data-act="saveEx" data-new="${isNew ? 1 : 0}" data-i="${i ?? ''}">Salvar</button>`);
-  editCfg = cfg; if (!time) renderRir();
+  editCfg = cfg; if (!time) { renderRir(); renderTPer(); }
 }
 let editCfg = null;
 const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
@@ -1820,8 +1869,9 @@ const H = {
       c.repsMin = Math.max(1, Math.round(num(val('e_rmin')) || 1)); c.repsMax = Math.max(c.repsMin, Math.round(num(val('e_rmax')) || c.repsMin)); c.kgMin = Math.max(0, cvRead('e_kmin')); c.kgMax = Math.max(c.kgMin, cvRead('e_kmax'));
       const per = document.getElementById('e_rirper').checked, def = +val('e_rir'); c.rir = [];
       for (let k = 0; k < c.sets; k++) c.rir.push(per && val('e_rir_' + k) !== '' ? +val('e_rir_' + k) : def);
-      c.tempo = readTempo('e');
+      c.tempo = readTempo('e'); c.tempoSets = (document.getElementById('e_tper') || {}).checked ? readTPer(c.sets) : null;
     }
+    { const pv = val('e_prep').trim(); c.prep = pv === '' ? null : Math.max(0, Math.round(num(pv))); }
     c.variant = val('e_var').trim(); c.grip = val('e_grip');
     if (editFor === 'run') { const r = run.exs[editRunIdx]; const nr = buildRunEx(c); nr.note = r.note; run.exs.splice(editRunIdx, 1, nr); editFor = null; persistRun(); closeModal(); render(); return; }
     const a = findW(view.id).w.exercises;
@@ -1848,21 +1898,37 @@ const H = {
   saveRun: () => saveRun(),
   editSet: d => {
     const e = run.exs[+d.i], s = e.sets[+d.j];
-    modal(`<h2>Série ${+d.j + 1}</h2>${e.type === 'time' ? `<div class="field"><span class="lbl">Segundos</span><div class="step"><button data-act="stp" data-t="s_secs" data-by="-5" aria-label="Menos 5">−</button><input type="number" inputmode="numeric" id="s_secs" value="${s.secs}" aria-label="Segundos"><button data-act="stp" data-t="s_secs" data-by="5" aria-label="Mais 5">+</button></div></div>` : `<div class="field"><span class="lbl">Repetições</span><div class="step"><button data-act="stp" data-t="s_reps" data-by="-1" aria-label="Menos 1">−</button><input type="number" inputmode="numeric" id="s_reps" value="${s.reps}" aria-label="Repetições"><button data-act="stp" data-t="s_reps" data-by="1" aria-label="Mais 1">+</button></div></div><div class="field"><span class="lbl">Carga (kg e lb)</span><div class="step"><button data-act="stp" data-t="s_kg" data-by="-2.5" aria-label="Menos 2,5 kg">−</button>${cvg('s_kg', null, s.kg, ['kg', 'lb'], {kg: 's_kg', lb: 's_lb'})}<button data-act="stp" data-t="s_kg" data-by="2.5" aria-label="Mais 2,5 kg">+</button></div></div><div class="field"><label class="lbl" for="s_rir">RIR (repetições na reserva)</label><select id="s_rir">${rirOpts(s.rir ?? S.settings.defaultRir)}</select></div><label class="chkrow"><input type="checkbox" id="s_warm" ${s.warm ? 'checked' : ''}> Série de aquecimento (não conta no volume)</label>`}<button class="btn primary block" data-act="saveSet" data-i="${d.i}" data-j="${d.j}">Salvar</button><button class="btn block danger" data-act="delSet" data-i="${d.i}" data-j="${d.j}">Remover série</button>`);
+    modal(`<h2>Série ${+d.j + 1}</h2>${e.type === 'time' ? `<div class="field"><span class="lbl">Segundos</span><div class="step"><button data-act="stp" data-t="s_secs" data-by="-5" aria-label="Menos 5">−</button><input type="number" inputmode="numeric" id="s_secs" value="${s.secs}" aria-label="Segundos"><button data-act="stp" data-t="s_secs" data-by="5" aria-label="Mais 5">+</button></div></div>` : `<div class="field"><span class="lbl">Repetições</span><div class="step"><button data-act="stp" data-t="s_reps" data-by="-1" aria-label="Menos 1">−</button><input type="number" inputmode="numeric" id="s_reps" value="${s.reps}" aria-label="Repetições"><button data-act="stp" data-t="s_reps" data-by="1" aria-label="Mais 1">+</button></div></div><div class="field"><span class="lbl">Carga (kg e lb)</span><div class="step"><button data-act="stp" data-t="s_kg" data-by="-2.5" aria-label="Menos 2,5 kg">−</button>${cvg('s_kg', null, s.kg, ['kg', 'lb'], {kg: 's_kg', lb: 's_lb'})}<button data-act="stp" data-t="s_kg" data-by="2.5" aria-label="Mais 2,5 kg">+</button></div></div><div class="field"><label class="lbl" for="s_rir">RIR (repetições na reserva)</label><select id="s_rir">${rirOpts(s.rir ?? S.settings.defaultRir)}</select></div><div class="field"><span class="lbl">Cadência desta série</span>${tRow('s_t', s.tempo || e.tempo || S.settings.tempo, '')}<span class="muted small">Excêntrica · pausa · concêntrica · pausa, em segundos.</span></div><label class="chkrow"><input type="checkbox" id="s_warm" ${s.warm ? 'checked' : ''}> Série de aquecimento (não conta no volume)</label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" style="flex:1" data-act="saveSet" data-i="${d.i}" data-j="${d.j}" data-ap="kg">Aplicar carga às séries restantes</button><button class="btn sm" style="flex:1" data-act="saveSet" data-i="${d.i}" data-j="${d.j}" data-ap="reps">Aplicar reps às séries restantes</button></div>`}<button class="btn primary block" data-act="saveSet" data-i="${d.i}" data-j="${d.j}">Salvar</button><button class="btn block danger" data-act="delSet" data-i="${d.i}" data-j="${d.j}">Remover série</button>`);
   },
   stp: d => { const el = document.getElementById(d.t); el.value = Math.max(0, Math.round((num(el.value) + +d.by) * 10) / 10); el.dispatchEvent(new Event('input', {bubbles: true})); },
-  saveSet: d => { const e = run.exs[+d.i], s = e.sets[+d.j]; if (e.type === 'time') s.secs = Math.max(1, Math.round(num(val('s_secs')))); else { s.reps = Math.max(0, Math.round(num(val('s_reps')))); s.kg = Math.max(0, cvRead('s_kg')); s.rir = +val('s_rir'); s.warm = !!(document.getElementById('s_warm') || {}).checked; } persistRun(); closeModal(); render(); },
+  saveSet: d => { const e = run.exs[+d.i], s = e.sets[+d.j]; if (e.type === 'time') s.secs = Math.max(1, Math.round(num(val('s_secs')))); else { s.reps = Math.max(0, Math.round(num(val('s_reps')))); s.kg = Math.max(0, cvRead('s_kg')); s.rir = +val('s_rir'); s.warm = !!(document.getElementById('s_warm') || {}).checked; { const t = tRowRead('s_t'); s.tempo = t === e.tempo ? '' : t; } if (d.ap) { const n = applyRest(e, +d.j, d.ap); toast(n ? `${d.ap === 'kg' ? 'Carga' : 'Repetições'} aplicada${d.ap === 'kg' ? '' : 's'} a mais ${n} série${n > 1 ? 's' : ''}` : 'Não há séries restantes'); } } persistRun(); closeModal(); render(); },
+  qEdit: d => {
+    const e = run.exs[+d.i], s = e.sets[+d.j], f = d.f;
+    if (f === 'secs') return H.editSet(d);
+    const field = f === 'reps' ? `<div class="step"><button data-act="stp" data-t="q_reps" data-by="-1" aria-label="Menos 1">−</button><input type="number" inputmode="numeric" id="q_reps" value="${s.reps}" aria-label="Repetições"><button data-act="stp" data-t="q_reps" data-by="1" aria-label="Mais 1">+</button></div>`
+      : `<div class="step"><button data-act="stp" data-t="q_kg" data-by="-2.5" aria-label="Menos 2,5 kg">−</button>${cvg('q_kg', null, s.kg, ['kg', 'lb'], {kg: 'q_kg', lb: 'q_lb'})}<button data-act="stp" data-t="q_kg" data-by="2.5" aria-label="Mais 2,5 kg">+</button></div>`;
+    modal(`<h2>${f === 'reps' ? 'Repetições' : 'Carga'} · série ${+d.j + 1}</h2><p class="muted small" style="margin:0">${esc(exLabel(e))}</p>${field}
+    <button class="btn primary block" data-act="qSave" data-i="${d.i}" data-j="${d.j}" data-f="${f}">Salvar</button><button class="btn block" data-act="qSave" data-i="${d.i}" data-j="${d.j}" data-f="${f}" data-all="1">Salvar e aplicar às séries restantes</button>`);
+    const el = document.getElementById(f === 'reps' ? 'q_reps' : f === 'lb' ? 'q_lb' : 'q_kg'); if (el) { el.focus(); try { el.select(); } catch (er) {} }
+  },
+  qSave: d => {
+    const e = run.exs[+d.i], s = e.sets[+d.j];
+    if (d.f === 'reps') s.reps = Math.max(0, Math.round(num(val('q_reps')))); else s.kg = Math.max(0, cvRead('q_kg'));
+    let n = 0; if (d.all) n = applyRest(e, +d.j, d.f === 'reps' ? 'reps' : 'kg');
+    persistRun(); closeModal(); render(); if (d.all) toast(n ? `Aplicado a mais ${n} série${n > 1 ? 's' : ''}` : 'Não há séries restantes');
+  },
   delSet: d => { const e = run.exs[+d.i]; if (e.sets.length < 2) return toast('Mantenha ao menos uma série'); e.sets.splice(+d.j, 1); if (run.exIdx === +d.i && run.setIdx >= e.sets.length) run.setIdx = e.sets.length - 1; persistRun(); closeModal(); render(); },
   addSet: () => { const e = curEx(), l = e.sets[e.sets.length - 1]; e.sets.push(Object.assign({}, l, {done: false, actual: undefined})); persistRun(); render(); },
   noteEx: () => modal(`<h2>Nota</h2><textarea id="n_t" aria-label="Nota do exercício">${esc(curEx().note)}</textarea><button class="btn primary block" data-act="saveNote">Salvar</button>`),
   saveNote: () => { curEx().note = val('n_t').trim(); persistRun(); closeModal(); render(); },
-  jumpEx: d => { const i = +d.i, e = run.exs[i], k = e.sets.findIndex(s => !s.done); if (k < 0) return toast('Exercício já concluído'); run.exIdx = i; run.setIdx = k; setPhase(S.settings.prep ? 'prepare' : 'exec'); render(); },
+  jumpEx: d => { const i = +d.i, e = run.exs[i], k = e.sets.findIndex(s => !s.done); if (k < 0) return toast('Exercício já concluído'); run.exIdx = i; run.setIdx = k; setPhase(prepPh()); render(); },
   subEx: d => similarPick(run.exs[+d.i].exId, (id) => { const i = +d.i, old = run.exs[i]; const c = Object.assign({}, old.cfg, {exId: id, variant: pickPreset.variant || '', grip: pickPreset.grip || ''}); pickPreset = {}; const nr = buildRunEx(c); nr.sets = nr.sets.slice(0, 1).length ? Array.from({length: old.sets.length}, (_, k) => Object.assign({}, nr.sets[Math.min(k, nr.sets.length - 1)], {done: old.sets[k] ? old.sets[k].done : false})) : nr.sets; nr.note = old.note; run.exs[i] = nr; persistRun(); render(); }, run.exs[+d.i].grip, run.exs[+d.i].variant),
   runExMenu: d => menu(run.exs[+d.i].name, [{t: 'Editar séries do plano', act: 'editRunEx', d: {i: d.i}}, {t: 'Substituir', act: 'subExM', d: {i: d.i}}, {t: 'Pular', act: 'skipEx', d: {i: d.i}}, {t: 'Remover do treino', act: 'rmRunEx', d: {i: d.i}, danger: 1}]),
   editRunEx: d => { editFor = 'run'; editRunIdx = +d.i; exEditor(JSON.parse(JSON.stringify(run.exs[+d.i].cfg)), false, +d.i); },
   subExM: d => { closeModal(); H.subEx(d); },
-  skipEx: d => { const i = +d.i; closeModal(); if (i === run.exIdx) { const t = nextTargetFrom(i); if (!t) return finishRun(); run.exIdx = t[0]; run.setIdx = t[1]; setPhase(S.settings.prep ? 'prepare' : 'exec'); } run.exs[i].sets.forEach(s => s.done = s.done || false); run.exs[i].skipped = true; persistRun(); render(); },
-  rmRunEx: d => { const i = +d.i; closeModal(); run.exs.splice(i, 1); if (!run.exs.length) return finishRun(); if (i < run.exIdx) run.exIdx--; else if (i === run.exIdx) { if (run.exIdx >= run.exs.length) run.exIdx = run.exs.length - 1; const k = run.exs[run.exIdx].sets.findIndex(s => !s.done); if (k < 0) return finishRun(); run.setIdx = k; setPhase(S.settings.prep ? 'prepare' : 'exec'); } persistRun(); render(); },
+  skipEx: d => { const i = +d.i; closeModal(); if (i === run.exIdx) { const t = nextTargetFrom(i); if (!t) return finishRun(); run.exIdx = t[0]; run.setIdx = t[1]; setPhase(prepPh()); } run.exs[i].sets.forEach(s => s.done = s.done || false); run.exs[i].skipped = true; persistRun(); render(); },
+  rmRunEx: d => { const i = +d.i; closeModal(); run.exs.splice(i, 1); if (!run.exs.length) return finishRun(); if (i < run.exIdx) run.exIdx--; else if (i === run.exIdx) { if (run.exIdx >= run.exs.length) run.exIdx = run.exs.length - 1; const k = run.exs[run.exIdx].sets.findIndex(s => !s.done); if (k < 0) return finishRun(); run.setIdx = k; setPhase(prepPh()); } persistRun(); render(); },
   addRunEx: () => pickEx(id => { const c = newCfg(id, (findW(run.workoutId) || {}).r, (findW(run.workoutId) || {}).w); run.exs.push(buildRunEx(c)); persistRun(); render(); toast('Exercício adicionado ao fim'); }, undefined, items => { const f = findW(run.workoutId) || {}; items.forEach(it => { pickPreset = {variant: it.v, grip: it.g}; run.exs.push(buildRunEx(newCfg(it.id, f.r, f.w))); }); persistRun(); render(); toast(items.length + ' exercícios adicionados ao fim'); }),
   gym: () => go({n: 'gym'}),
   togEq: d => { if (S.equip === null) S.equip = EQUIP.map(e => e.id); const i = S.equip.indexOf(d.id); if (i >= 0) S.equip.splice(i, 1); else S.equip.push(d.id); persist(); render(); },
@@ -2020,7 +2086,7 @@ const CH = {
   evoSel(el) { view.evo = el.value; render(); },
   exPeriod(el) { view.period = el.value; render(); },
   profnum(el) { S.profile[el.dataset.k] = el.value.trim() === '' ? null : Math.max(0, Math.round(num(el.value))); persist(); refreshBody(); },
-  rirToggle() { renderRir(); }, rirSets() { renderRir(); }
+  rirToggle() { renderRir(); }, rirSets() { renderRir(); renderTPer(); }, tPer() { renderTPer(); }
 };
 document.addEventListener('change', e => { const el = e.target, f = el.dataset && CH[el.dataset.actChange]; if (f) f(el); });
 document.addEventListener('input', e => {
@@ -2057,23 +2123,28 @@ fitVV();
 let drag = null, eatClick = false;
 document.addEventListener('pointerdown', e => {
   const row = e.target.closest('[data-drag]'); if (!row || e.button > 0) return;
-  drag = {row, y0: e.clientY, x0: e.clientX, active: false, timer: setTimeout(() => { if (!drag) return; drag.active = true; row.classList.add('dragging'); try { navigator.vibrate && navigator.vibrate(25); } catch (er) {} }, 450)};
+  const go = () => { if (!drag) return; drag.active = true; drag.rows = [...document.querySelectorAll(`[data-drag="${row.dataset.drag}"]` + (row.dataset.r ? `[data-r="${row.dataset.r}"]` : ''))]; drag.rects = drag.rows.map(r => r.getBoundingClientRect()); row.classList.add('dragging'); try { navigator.vibrate && navigator.vibrate(25); } catch (er) {} };
+  drag = {row, y0: e.clientY, x0: e.clientX, active: false, timer: 0};
+  if (e.target.closest('[data-dh]')) { e.preventDefault(); go(); } else drag.timer = setTimeout(go, 400);
 });
 document.addEventListener('pointermove', e => {
   if (!drag) return; const dy = e.clientY - drag.y0;
   if (!drag.active) { if (Math.abs(dy) > 10 || Math.abs(e.clientX - drag.x0) > 10) { clearTimeout(drag.timer); drag = null; } return; }
   drag.row.style.transform = `translateY(${dy}px)`; drag.y = e.clientY;
+  const from = drag.rows.indexOf(drag.row), h = drag.rects[from].height + 8, to = dragTo(drag);
+  drag.rows.forEach((r, k) => { if (r === drag.row) return; const sh = (from < to && k > from && k <= to) ? -h : (from > to && k < from && k >= to) ? h : 0; r.style.transform = sh ? `translateY(${sh}px)` : ''; });
 });
 document.addEventListener('touchmove', e => { if (drag && drag.active) e.preventDefault(); }, {passive: false});
 document.addEventListener('contextmenu', e => { if (drag) e.preventDefault(); });
+function dragTo(d) { const y = d.y ?? d.y0, others = d.rows.map((r, k) => k).filter(k => d.rows[k] !== d.row); return others.filter(k => { const b = d.rects[k]; return y > b.top + b.height / 2; }).length; }
 function endDrag() {
   if (!drag) return; clearTimeout(drag.timer);
   const d = drag; drag = null;
   if (!d.active) return;
   eatClick = true; setTimeout(() => eatClick = false, 400);
   const rows = [...document.querySelectorAll(`[data-drag="${d.row.dataset.drag}"]` + (d.row.dataset.r ? `[data-r="${d.row.dataset.r}"]` : ''))], from = +d.row.dataset.i, y = d.y ?? d.y0;
-  let to = rows.filter(r => r !== d.row).filter(r => { const b = r.getBoundingClientRect(); return y > b.top + b.height / 2; }).length;
-  d.row.style.transform = ''; d.row.classList.remove('dragging');
+  let to = d.rects ? dragTo(d) : rows.filter(r => r !== d.row).filter(r => { const b = r.getBoundingClientRect(); return y > b.top + b.height / 2; }).length;
+  (d.rows || rows).forEach(r => r.style.transform = ''); d.row.classList.remove('dragging');
   if (to === from) return;
   if (d.row.dataset.drag === 'rw') { const r = S.routines.find(x => x.id === d.row.dataset.r); if (!r) return; const [it] = r.workouts.splice(from, 1); r.workouts.splice(to, 0, it); persist(); }
   else if (d.row.dataset.drag === 'w') { const f = findW(view.id); if (!f) return; const a = f.w.exercises, [it] = a.splice(from, 1); a.splice(to, 0, it); persist(); }
