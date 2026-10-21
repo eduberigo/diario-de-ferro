@@ -18,7 +18,7 @@ head = f'''<!doctype html>
 '''
 tail = f'''
 <script>
-if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v={ver}').catch(() => {{}});
+if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v={ver}').catch(() => {{}});
 </script>
 </body>
 </html>
@@ -46,4 +46,10 @@ self.addEventListener('fetch', e => {{
   }}
 }});
 ''')
+# app Android (Capacitor): mesma página, sem service worker
+import shutil
+W = D + 'android-app/www/'
+os.makedirs(W, exist_ok=True)
+shutil.copy(D + 'index.html', W + 'index.html')
+for f in ('icon-192.png', 'icon-512.png', 'manifest.json'): shutil.copy(D + f, W + f)
 print('built', ver)

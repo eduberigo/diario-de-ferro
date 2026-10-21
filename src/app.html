@@ -566,6 +566,9 @@ let S = lsGet(LS + '.state') || seed();
 norm(S);
 let sessions = lsGet(LS + '.sessions') || [];
 sessions.forEach(migSess);
+const NAT = !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications);
+const natP = n => NAT ? window.Capacitor.Plugins[n] : null;
+let natInitP = null, natLast = '', natT = 0, natAlarm = 0;
 let run = lsGet(LS + '.run');
 if (run && run.phase !== 'done' && !run.pausedAt) run.pausedAt = run.heartbeat || Date.now();
 if (run) run.exs.forEach(e => { migEx(e); migEx(e.cfg); });
@@ -578,7 +581,7 @@ const tileOf = ex => { const g = (ex.primary || [])[0]; return `<span class="til
 let assetsNs = null, base = null, cloudMsg = 'Somente neste aparelho', saveTimer = null, saving = false, dirty = false;
 function persist() { S.updatedAt = Date.now(); lsSet(LS + '.state', S); scheduleCloud(); }
 function persistSessions() { lsSet(LS + '.sessions', sessions); }
-function persistRun() { if (run) { run.heartbeat = Date.now(); lsSet(LS + '.run', run); } else { try { localStorage.removeItem(LS + '.run'); } catch (e) {} } }
+function persistRun() { if (run) { run.heartbeat = Date.now(); lsSet(LS + '.run', run); } else { try { localStorage.removeItem(LS + '.run'); } catch (e) {} } natSync(); }
 function scheduleCloud() { dirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(pushCloud, 900); }
 let pend = Object.assign({backup: null, sess: []}, lsGet(LS + '.pend') || {});
 const savePend = () => lsSet(LS + '.pend', pend);
@@ -959,7 +962,7 @@ function settingsView() {
   ${nf('countFrom', 'Contar a partir de', 'Segundos finais da preparação.', 's')}
   <div class="set"><div class="t"><b>Som de início</b><span class="muted small">Toca quando a série começa.</span></div><select data-act-change="setsel" data-k="startSound" aria-label="Som de início" style="width:140px">${selOpts([['sino', 'Sino de ringue'], ['apito', 'Apito'], ['bipe', 'Bipe']], s.startSound)}</select></div>
   <div class="set" style="align-items:center"><div class="t"><b>Testar sons</b></div><button class="btn sm" data-act="testCount">Contagem</button><button class="btn sm" data-act="testStart">Início</button></div>
-  ${tg('mediaCtl', 'Controles na notificação (experimental)', 'Durante o treino, mostra série, reps e carga na notificação de mídia do celular, com Próximo, Voltar e Pausa. Depende do navegador permitir. Atenção: pode pausar o Spotify, porque o celular só mostra um player de mídia por vez.')}
+  ${NAT ? '' : tg('mediaCtl', 'Controles na notificação (experimental)', 'Durante o treino, mostra série, reps e carga na notificação de mídia do celular, com Próximo, Voltar e Pausa. Depende do navegador permitir. Atenção: pode pausar o Spotify, porque o celular só mostra um player de mídia por vez.')}
   ${tg('autoBackup', 'Backup automático no Drive', 'Ao terminar cada treino, faz o backup sem perguntar. Sem rede, espera e tenta de novo sozinho.')}
   ${tg('smart', 'Sugestão inteligente', 'Preenche reps e carga com o que você fez da última vez no exercício.')}</div>
   <p class="muted small">Peso, gordura e medidas ficam na aba Corpo e entram no cálculo de calorias.</p>
@@ -1067,6 +1070,7 @@ function rdModal(r) {
 /* ---------- backup ---------- */
 const inClaude = () => !!(window.claude && claude.use);
 async function shareFile(name, text, type) {
+  if (NAT) { const r = await natShare(name, text); if (r) return r; }
   const blob = new Blob([text], {type});
   try { const f = new File([blob], name, {type}); if (navigator.canShare && navigator.canShare({files: [f]})) { await navigator.share({files: [f], title: name}); return 'shared'; } } catch (e) { if (e && e.name === 'AbortError') return 'cancel'; }
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); return 'saved';
@@ -1374,6 +1378,79 @@ function mediaUpdate() {
   } catch (e) {}
 }
 
+/* ---------- app Android (Capacitor): notificação do treino, alarme e tela ligada ---------- */
+function natInit() {
+  const ln = natP('LocalNotifications'); if (!ln) return Promise.resolve(false);
+  if (natInitP) return natInitP;
+  natInitP = (async () => {
+    try {
+      const p = await ln.checkPermissions(); if (p.display !== 'granted') await ln.requestPermissions();
+      await ln.createChannel({id: 'ferro-treino', name: 'Treino em andamento', description: 'Fase, série e carga do treino', importance: 2, vibration: false, visibility: 1});
+      await ln.createChannel({id: 'ferro-alarme', name: 'Fim do cronômetro', description: 'Avisa quando o descanso ou a preparação termina', importance: 5, vibration: true, visibility: 1});
+      await ln.registerActionTypes({types: [
+        {id: 'exec', actions: [{id: 'back', title: 'Voltar'}, {id: 'pause', title: 'Pausar'}, {id: 'next', title: 'Série feita'}]},
+        {id: 'rest', actions: [{id: 'plus', title: '+15 s'}, {id: 'pause', title: 'Pausar'}, {id: 'next', title: 'Pular'}]},
+        {id: 'prep', actions: [{id: 'back', title: 'Voltar'}, {id: 'pause', title: 'Pausar'}, {id: 'next', title: 'Começar'}]},
+        {id: 'paused', actions: [{id: 'back', title: 'Voltar'}, {id: 'pause', title: 'Continuar'}, {id: 'next', title: 'Próximo'}]}]});
+      ln.addListener('localNotificationActionPerformed', a => {
+        if (!run || run.phase === 'done') return;
+        const id = a && a.actionId;
+        if (id === 'next') runNext(); else if (id === 'back') runBack(); else if (id === 'pause') H.pauseBtn(); else if (id === 'plus') H.restPlus();
+        natLast = ''; natSync(); if (view.n === 'run') render();
+      });
+      return true;
+    } catch (e) { return false; }
+  })();
+  return natInitP;
+}
+function natSync() {
+  if (!NAT) return;
+  clearTimeout(natT);
+  natT = setTimeout(async () => {
+    const ln = natP('LocalNotifications'), ka = natP('KeepAwake');
+    try {
+      if (!run || run.phase === 'done') {
+        if (natLast) { natLast = ''; natAlarm = 0; await ln.cancel({notifications: [{id: 1}, {id: 2}]}); try { ka && ka.allowSleep(); } catch (e) {} }
+        return;
+      }
+      if (!(await natInit())) return;
+      const ex = curEx(), st = ex.sets[run.setIdx] || {}, ph = {warmup: 'Aquecimento', prepare: 'Prepare-se', exec: 'Executando', rest: 'Descanso'}[run.phase] || '';
+      const v = phaseView(), end = (!run.pausedAt && v.count) ? Date.now() + v.rem : 0;
+      const hm = t => new Date(t).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+      const title = `${run.pausedAt ? 'Pausado · ' : ''}${ph} · ${exLabel(ex)}`;
+      const body = `Série ${run.setIdx + 1}/${ex.sets.length} · ${ex.type === 'time' ? st.secs + ' s' : `${fmtN(st.reps)} reps · ${fmtN(st.kg)} kg (${f1(st.kg * LB)} lb) · RIR ${st.rir ?? S.settings.defaultRir}`}${end && run.phase !== 'exec' ? ` · termina às ${hm(end)}` : ''}${ex.tempo && run.phase === 'exec' ? ` · cadência ${ex.tempo}` : ''}`;
+      const type = run.pausedAt ? 'paused' : run.phase === 'rest' ? 'rest' : run.phase === 'exec' ? 'exec' : 'prep';
+      const key = title + '|' + body + '|' + type;
+      if (key !== natLast) {
+        natLast = key;
+        await ln.schedule({notifications: [{id: 1, title, body, largeBody: body, channelId: 'ferro-treino', ongoing: true, autoCancel: false, actionTypeId: type, smallIcon: 'ic_stat_ferro', iconColor: '#e8553a'}]});
+        try { ka && ka.keepAwake(); } catch (e) {}
+      }
+      natAlarmSync(end);
+    } catch (e) {}
+  }, 120);
+}
+async function natAlarmSync(end) {
+  const ln = natP('LocalNotifications'); if (!ln) return;
+  const want = (document.visibilityState === 'hidden' && end && end - Date.now() > 1500) ? Math.round(end / 1000) * 1000 : 0;
+  if (want === natAlarm) return;
+  natAlarm = want;
+  try {
+    await ln.cancel({notifications: [{id: 2}]});
+    if (want) { const ex = curEx(); await ln.schedule({notifications: [{id: 2, title: run.phase === 'rest' ? 'Fim do descanso' : run.phase === 'prepare' ? 'Começar a série' : 'Tempo da série terminou', body: `${exLabel(ex)} · série ${run.setIdx + 1}/${ex.sets.length}`, channelId: 'ferro-alarme', smallIcon: 'ic_stat_ferro', iconColor: '#e8553a', schedule: {at: new Date(want), allowWhileIdle: true}}]}); }
+  } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => { if (NAT && run && run.phase !== 'done') { const v = phaseView(); natAlarmSync((!run.pausedAt && v.count) ? Date.now() + v.rem : 0); } });
+if (NAT && run && run.phase !== 'done') setTimeout(() => natInit().then(natSync), 300);
+async function natShare(name, text) {
+  const fs = natP('Filesystem'), sh = natP('Share'); if (!fs || !sh) return null;
+  try {
+    const w = await fs.writeFile({path: name, data: text, directory: 'CACHE', encoding: 'utf8'});
+    await sh.share({title: name, files: [w.uri], dialogTitle: 'Salvar ou enviar ' + name});
+    return 'shared';
+  } catch (e) { return /cancel/i.test(String(e && (e.message || e))) ? 'cancel' : null; }
+}
+
 /* ---------- execução do treino ---------- */
 const curEx = () => run.exs[run.exIdx];
 const sum = o => Object.values(o).reduce((a, b) => a + b, 0);
@@ -1405,7 +1482,7 @@ function startRun(w, rname) {
   const tw = tempoOf({}, w), exs = w.exercises.map(c => buildRunEx(Object.assign({}, c, {tempoW: tw})));
   const warm = S.settings.warmup && exs[0] && exs[0].type !== 'time';
   run = {id: uid(), workoutId: w.id, name: w.name, routine: rname, startedAt: Date.now(), exs, exIdx: 0, setIdx: 0, warm: !!warm, phase: warm ? 'warmup' : (S.settings.prep ? 'prepare' : 'exec'), phaseStart: Date.now(), pausedAt: null, tot: {warmup: 0, prepare: 0, exec: 0, rest: 0}, restTotal: 0, fired: 0};
-  persistRun(); beep(0); mediaStart();
+  persistRun(); beep(0); mediaStart(); natInit().then(natSync);
   try { navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {}
   stack = [{n: 'home'}]; view = {n: 'run'}; render(); window.scrollTo(0, 0);
 }
