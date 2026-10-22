@@ -3,7 +3,7 @@
   "appName": "Diário de Ferro",
   "webDir": "www",
   "android": {
-    "backgroundColor": "#12161b"
+    "backgroundColor": "#000000"
   },
   "plugins": {
     "LocalNotifications": {
@@ -12,7 +12,8 @@
     },
     "SystemBars": {
       "insetsHandling": "css",
-      "initialViewportFitValueHint": "cover"
+      "initialViewportFitValueHint": "cover",
+      "style": "DARK"
     }
   }
 }
