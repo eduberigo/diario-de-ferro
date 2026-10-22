@@ -718,6 +718,15 @@ function setDoneFrom(i, j) {
 function applyRest(e, j, f) { const s = e.sets[j]; let n = 0; e.sets.forEach((x, k) => { if (k > j && !x.done && (!x.warm || s.warm)) { x[f] = s[f]; n++; } }); return n; }
 const isCardio = e => { const l = e && (e.primary ? e : getEx(e.exId)); return !!(l && l.primary && l.primary[0] === 'Cardio'); };
 const fmtMin = secs => { const m = Math.floor(secs / 60), r = Math.round(secs % 60); return r ? m + ':' + pad(r) : String(m); };
+/* número da versão: no app Android vem do próprio APK; na versão web, da data em que a página foi gerada */
+let natVer = null;
+function verText() {
+  const b = window.FERRO_BUILD, bd = b ? new Date(Date.UTC(+b.slice(0, 4), +b.slice(4, 6) - 1, +b.slice(6, 8), +b.slice(8, 10), +b.slice(10, 12))).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}) : '';
+  if (natVer) return `Diário de Ferro · app Android versão ${natVer.v} (build ${natVer.b})${bd ? ' · gerado em ' + bd : ''}`;
+  if (b) return `Diário de Ferro · versão web de ${bd}`;
+  return 'Diário de Ferro · versão do claude.ai';
+}
+if (NAT && natP('App')) try { natP('App').getInfo().then(i => { natVer = {v: i.version, b: i.build}; const el = document.getElementById('verinfo'); if (el) el.textContent = verText(); }).catch(() => {}); } catch (e) {}
 function prepOf(e) { const v = e ? (e.prep ?? (e.cfg && e.cfg.prep)) : null; return (v != null && v !== '') ? Math.max(0, +v) : (S.settings.prep ? +S.settings.prepSec || 0 : 0); }
 const prepPh = () => prepOf(curEx()) > 0 ? 'prepare' : 'exec';
 const TEMPO_PRE = [['2-0-2-0', 'Controlada'], ['3-0-1-0', 'Hipertrofia'], ['4-0-1-0', 'Excêntrica lenta'], ['3-1-1-0', 'Pausa no alongamento'], ['2-0-1-2', 'Pico de contração'], ['2-0-X-0', 'Explosiva']];
@@ -1021,7 +1030,8 @@ function settingsView() {
   <div class="card" style="margin-top:10px"><div class="set"><div class="t"><b>Arquivo no aparelho</b><span class="muted small">Baixa um arquivo .json que você pode guardar onde quiser.</span></div></div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;padding:0 14px 14px"><button class="btn sm" data-act="fileSave">${inClaude() ? 'Baixar arquivo' : 'Baixar / compartilhar arquivo'}</button><label class="btn sm" for="impfile" style="cursor:pointer">Restaurar arquivo</label><input type="file" id="impfile" accept="application/json,.json" hidden data-act-change="impFile"></div></div>
   <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap"><button class="btn sm" data-act="exportData">Copiar como texto</button><button class="btn sm" data-act="importData">Colar texto</button></div>
-  <p class="muted small">Os treinos ficam salvos neste navegador e, quando disponível, também na sua conta.</p></div>`;
+  <p class="muted small">Os treinos ficam salvos neste navegador e, quando disponível, também na sua conta.</p></div>
+  <p class="muted small num" id="verinfo" style="text-align:center;margin:20px 0 4px">${verText()}</p>`;
 }
 
 const GRIPS = {

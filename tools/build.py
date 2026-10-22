@@ -2,13 +2,14 @@ import time, json
 import os
 D = os.path.dirname(os.path.abspath(__file__)) + '/../'
 src = open(D + 'src/app.html', encoding='utf-8').read()
-ver = time.strftime('%Y%m%d%H%M')
+ver = time.strftime('%Y%m%d%H%M', time.gmtime())  # UTC; o app converte para a hora local
 head = f'''<!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12161b">
+<script>window.FERRO_BUILD = '{ver}';</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
