@@ -245,7 +245,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .dayhead{display:flex;align-items:center;justify-content:space-between;margin-top:18px}
 .nav button{font-size:11px}
 [data-drag]{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-.dragging{position:relative;z-index:9;background:var(--surface2);box-shadow:0 8px 24px rgba(0,0,0,.3);border-radius:12px}
+.dragging{position:relative;z-index:9;background:var(--surface2);box-shadow:0 14px 30px rgba(0,0,0,.45);border-radius:12px;outline:2px solid var(--accent);transition:none!important}
+.dnd .sacts{visibility:hidden}.dnd .swrap,.dnd [data-drag]{transition:transform .18s ease}.swrap.dragging{overflow:visible}.swrap.dragging .wrow{background:var(--surface2);border-radius:12px}
 .wtag{flex:none;border:1.5px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700;color:var(--muted)}
 .wtag.on{border-color:var(--warmup);color:var(--warmup)}
 .setline.warm .setcard{border-style:dashed}
@@ -2135,16 +2136,16 @@ fitVV();
 let drag = null, eatClick = false;
 document.addEventListener('pointerdown', e => {
   const row = e.target.closest('[data-drag]'); if (!row || e.button > 0) return;
-  const go = () => { if (!drag) return; drag.active = true; drag.rows = [...document.querySelectorAll(`[data-drag="${row.dataset.drag}"]` + (row.dataset.r ? `[data-r="${row.dataset.r}"]` : ''))]; drag.rects = drag.rows.map(r => r.getBoundingClientRect()); row.classList.add('dragging'); try { navigator.vibrate && navigator.vibrate(25); } catch (er) {} };
+  const go = () => { if (!drag) return; drag.active = true; drag.rows = [...document.querySelectorAll(`[data-drag="${row.dataset.drag}"]` + (row.dataset.r ? `[data-r="${row.dataset.r}"]` : ''))]; drag.rects = drag.rows.map(r => r.getBoundingClientRect()); drag.movers = drag.rows.map(r => r.closest('.swrap') || r); drag.mv = row.closest('.swrap') || row; closeSwipes(); document.body.classList.add('dnd'); drag.mv.classList.add('dragging'); try { navigator.vibrate && navigator.vibrate(25); } catch (er) {} };
   drag = {row, y0: e.clientY, x0: e.clientX, active: false, timer: 0};
   if (e.target.closest('[data-dh]')) { e.preventDefault(); go(); } else drag.timer = setTimeout(go, 400);
 });
 document.addEventListener('pointermove', e => {
   if (!drag) return; const dy = e.clientY - drag.y0;
   if (!drag.active) { if (Math.abs(dy) > 10 || Math.abs(e.clientX - drag.x0) > 10) { clearTimeout(drag.timer); drag = null; } return; }
-  drag.row.style.transform = `translateY(${dy}px)`; drag.y = e.clientY;
-  const from = drag.rows.indexOf(drag.row), h = drag.rects[from].height + 8, to = dragTo(drag);
-  drag.rows.forEach((r, k) => { if (r === drag.row) return; const sh = (from < to && k > from && k <= to) ? -h : (from > to && k < from && k >= to) ? h : 0; r.style.transform = sh ? `translateY(${sh}px)` : ''; });
+  drag.mv.style.transform = `translateY(${dy}px) scale(1.02)`; drag.y = e.clientY;
+  const from = drag.rows.indexOf(drag.row), h = drag.rects[from].height, to = dragTo(drag);
+  drag.movers.forEach((r, k) => { if (k === from) return; const sh = (from < to && k > from && k <= to) ? -h : (from > to && k < from && k >= to) ? h : 0; r.style.transform = sh ? `translateY(${sh}px)` : ''; });
 });
 document.addEventListener('touchmove', e => { if (drag && drag.active) e.preventDefault(); }, {passive: false});
 document.addEventListener('contextmenu', e => { if (drag) e.preventDefault(); });
@@ -2156,7 +2157,7 @@ function endDrag() {
   eatClick = true; setTimeout(() => eatClick = false, 400);
   const rows = [...document.querySelectorAll(`[data-drag="${d.row.dataset.drag}"]` + (d.row.dataset.r ? `[data-r="${d.row.dataset.r}"]` : ''))], from = +d.row.dataset.i, y = d.y ?? d.y0;
   let to = d.rects ? dragTo(d) : rows.filter(r => r !== d.row).filter(r => { const b = r.getBoundingClientRect(); return y > b.top + b.height / 2; }).length;
-  (d.rows || rows).forEach(r => r.style.transform = ''); d.row.classList.remove('dragging');
+  (d.movers || d.rows || rows).forEach(r => r.style.transform = ''); (d.mv || d.row).classList.remove('dragging'); document.body.classList.remove('dnd');
   if (to === from) return;
   if (d.row.dataset.drag === 'rw') { const r = S.routines.find(x => x.id === d.row.dataset.r); if (!r) return; const [it] = r.workouts.splice(from, 1); r.workouts.splice(to, 0, it); persist(); }
   else if (d.row.dataset.drag === 'w') { const f = findW(view.id); if (!f) return; const a = f.w.exercises, [it] = a.splice(from, 1); a.splice(to, 0, it); persist(); }
@@ -2197,7 +2198,7 @@ if (!inClaude() && navigator.storage && navigator.storage.persist) navigator.sto
 </script>
 
 <script>
-if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202610211749').catch(() => {});
+if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202610212020').catch(() => {});
 </script>
 </body>
 </html>
