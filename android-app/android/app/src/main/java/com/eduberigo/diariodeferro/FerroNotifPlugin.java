@@ -7,6 +7,11 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Build;
 import android.os.SystemClock;
 import android.view.View;
@@ -184,6 +189,59 @@ public class FerroNotifPlugin extends Plugin {
         } catch (SecurityException e) {
             call.reject("Sem permissão para notificações");
         }
+    }
+
+    // ---------- foco de áudio: abaixa a música só durante os sons do app ----------
+    private AudioManager am;
+    private AudioFocusRequest afr;
+    private boolean focusHeld = false;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable releaseFocus = this::releaseFocus;
+    private final AudioManager.OnAudioFocusChangeListener focusListener = change -> {};
+
+    @SuppressWarnings("deprecation")
+    private void releaseFocus() {
+        if (am == null || !focusHeld) return;
+        if (Build.VERSION.SDK_INT >= 26 && afr != null) am.abandonAudioFocusRequest(afr);
+        else am.abandonAudioFocus(focusListener);
+        focusHeld = false;
+    }
+
+    @SuppressWarnings("deprecation")
+    @PluginMethod
+    public void duck(PluginCall call) {
+        long ms = Math.max(300L, Math.min(30000L, call.getData().optLong("ms", 1500L)));
+        handler.post(() -> {
+            if (am == null) am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+            if (am == null) return;
+            if (!focusHeld) {
+                int r;
+                if (Build.VERSION.SDK_INT >= 26) {
+                    if (afr == null) {
+                        afr = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                            .setAudioAttributes(new AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                .build())
+                            .setOnAudioFocusChangeListener(focusListener)
+                            .build();
+                    }
+                    r = am.requestAudioFocus(afr);
+                } else {
+                    r = am.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
+                }
+                focusHeld = r == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
+            }
+            handler.removeCallbacks(releaseFocus);
+            handler.postDelayed(releaseFocus, ms);
+        });
+        call.resolve();
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        handler.removeCallbacks(releaseFocus);
+        releaseFocus();
     }
 
     @PluginMethod

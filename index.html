@@ -332,6 +332,17 @@ const LIB = [
   E('rosca-martelo','Rosca martelo','reps',['Bíceps','Antebraços'],[],['halteres']),
   E('rosca-polia','Rosca na polia baixa','reps',['Bíceps'],['Antebraços'],['polia-baixa']),
   E('rosca-scott','Rosca Scott (barra W)','reps',['Bíceps'],['Antebraços'],['barra-ez','banco']),
+  E('rosca-polia-alta','Rosca Bíceps na Polia Alta (duplo bíceps)','reps',['Bíceps'],['Antebraços'],['crossover']),
+  E('rosca-polia-alta-uni','Rosca Bíceps Unilateral na Polia Alta','reps',['Bíceps'],['Antebraços'],['crossover']),
+  E('rosca-polia-baixa-uni','Rosca Bíceps Unilateral na Polia Baixa','reps',['Bíceps'],['Antebraços'],['crossover']),
+  E('rosca-inclinada-halteres','Rosca Banco Inclinado com Halteres','reps',['Bíceps'],['Antebraços'],['halteres','banco']),
+  E('rosca-inclinada-polia','Rosca Banco Inclinado na Polia Baixa','reps',['Bíceps'],['Antebraços'],['crossover','banco']),
+  E('rosca-spider','Rosca Spider (de bruços no banco inclinado)','reps',['Bíceps'],['Antebraços'],['halteres','banco']),
+  E('rosca-bayesiana','Rosca Bayesiana na Polia (de costas para a polia)','reps',['Bíceps'],['Antebraços'],['crossover']),
+  E('rosca-concentrada-polia','Rosca Concentrada na Polia','reps',['Bíceps'],['Antebraços'],['crossover','banco']),
+  E('rosca-drag','Rosca Drag (barra)','reps',['Bíceps'],['Antebraços','Ombros'],['barra']),
+  E('rosca-zottman','Rosca Zottman (halteres)','reps',['Bíceps','Antebraços'],[],['halteres']),
+  E('rosca-21','Rosca 21 (barra)','reps',['Bíceps'],['Antebraços'],['barra']),
   E('triceps-corda','Tríceps na polia – extensão para baixo','reps',['Tríceps'],[],['polia-alta']),
   E('triceps-polia-horizontal','Extensão de tríceps na polia alta (braços na horizontal)','reps',['Tríceps'],['Ombros'],['polia-alta']),
   E('triceps-frances-polia','Tríceps francês na polia (braços na vertical)','reps',['Tríceps'],['Ombros'],['polia-baixa']),
@@ -702,6 +713,14 @@ function bmr() {
 function rate() { const b = bmr(); return b ? b.v / 24 : (S.profile.weightKg || 70); }
 function kcalOf(tot) { const r = rate(); let k = 0; for (const p in MET) k += MET[p] * r * ((tot[p] || 0) / 3600000); return Math.round(k); }
 /* cadência: excêntrica-pausa alongado-concêntrica-pausa contraído (X = explosiva) */
+function setDoneFrom(i, j) {
+  const el = document.getElementById('s_done'); if (!el) return;
+  const s = run.exs[i].sets[j], now = el.checked;
+  if (now === !!s.done) return;
+  s.done = now;
+  if (!now) { if (run.prevPtr && run.prevPtr[0] === i && run.prevPtr[1] === j) run.prevPtr = null; toast('Série marcada como não feita'); return; }
+  if (i === run.exIdx && j === run.setIdx && run.phase !== 'done') { const t = nextTarget(); if (t) { run.exIdx = t[0]; run.setIdx = t[1]; setPhase(prepPh()); } }
+}
 function applyRest(e, j, f) { const s = e.sets[j]; let n = 0; e.sets.forEach((x, k) => { if (k > j && !x.done && (!x.warm || s.warm)) { x[f] = s[f]; n++; } }); return n; }
 function prepOf(e) { const v = e ? (e.prep ?? (e.cfg && e.cfg.prep)) : null; return (v != null && v !== '') ? Math.max(0, +v) : (S.settings.prep ? +S.settings.prepSec || 0 : 0); }
 const prepPh = () => prepOf(curEx()) > 0 ? 'prepare' : 'exec';
@@ -1032,6 +1051,9 @@ const GRIPS = {
   'rosca-alternada': ['Supinada', 'Neutra (martelo)', 'Pronada (inversa)'],
   'rosca-polia': ['Supinada', 'Pronada', 'Neutra (corda)'],
   'rosca-scott': ['Supinada', 'Pronada'],
+  'rosca-polia-alta': ['Supinada', 'Neutra'], 'rosca-polia-alta-uni': ['Supinada', 'Neutra'], 'rosca-polia-baixa-uni': ['Supinada', 'Neutra'],
+  'rosca-inclinada-halteres': ['Supinada', 'Neutra (martelo)'], 'rosca-inclinada-polia': ['Supinada', 'Neutra'], 'rosca-spider': ['Supinada', 'Neutra (martelo)'],
+  'rosca-bayesiana': ['Supinada', 'Neutra'], 'rosca-concentrada-polia': ['Supinada', 'Neutra'], 'rosca-drag': ['Supinada', 'Pronada'],
   'triceps-corda': ['Neutra', 'Pronada', 'Supinada'],
   'triceps-polia-horizontal': ['Neutra', 'Pronada', 'Supinada'],
   'triceps-frances-polia': ['Neutra', 'Pronada', 'Supinada'],
@@ -1043,6 +1065,8 @@ const GRIPS = {
   'agachamento': ['Barra alta', 'Barra baixa']
 };
 const ACC = {
+  'rosca-polia-alta': ['Pegadores (manoplas)', 'Corda'], 'rosca-polia-alta-uni': ['Pegador (manopla)', 'Corda'], 'rosca-polia-baixa-uni': ['Pegador (manopla)', 'Corda'],
+  'rosca-inclinada-polia': ['Barra reta', 'Barra W', 'Corda', 'Pegadores (manoplas)'], 'rosca-bayesiana': ['Pegador (manopla)', 'Corda'], 'rosca-concentrada-polia': ['Pegador (manopla)', 'Corda'],
   'puxada-alta': ['Barra longa', 'Triângulo', 'Barra reta curta'],
   'puxada-estendida': ['Corda', 'Barra reta'],
   'puxada-invertida': ['Barra reta', 'Barra W'],
@@ -1359,7 +1383,7 @@ async function storePhotos(files) {
 let audioTimer = null;
 function ac() { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); clearTimeout(audioTimer); if (audio.state === 'suspended') audio.resume(); return audio; }
 // libera o áudio quando o app fica em silêncio, para o celular devolver o volume da música
-function holdAudio(ms) { clearTimeout(audioTimer); audioTimer = setTimeout(() => { try { if (audio && audio.state === 'running') audio.suspend(); } catch (e) {} }, ms); }
+function holdAudio(ms, quiet) { if (!quiet) natDuck(ms); clearTimeout(audioTimer); audioTimer = setTimeout(() => { try { if (audio && audio.state === 'running') audio.suspend(); } catch (e) {} }, ms); }
 function tickSnd() { try { const a = ac(), o = a.createOscillator(), g = a.createGain(), t = a.currentTime; o.frequency.value = 1400; o.connect(g); g.connect(a.destination); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.16, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + .07); o.start(t); o.stop(t + .08); holdAudio(run && run.phase === 'prepare' ? 4000 : 1200); } catch (e) {} }
 function say(n) { try { const u = new SpeechSynthesisUtterance(String(n)); u.lang = 'pt-BR'; u.rate = 1.1; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) { tickSnd(); } }
 function countSnd(n) { if (!S.settings.sound || S.settings.countMode === 'off') return; if (S.settings.countMode === 'voz' && 'speechSynthesis' in window) say(n); else tickSnd(); }
@@ -1385,6 +1409,7 @@ function silentUrl() {
   return URL.createObjectURL(new Blob([b], {type: 'audio/wav'}));
 }
 function mediaStart() {
+  if (NAT) return;
   if (!S.settings.mediaCtl || !('mediaSession' in navigator)) return;
   try {
     if (!mAudio) { mAudio = new Audio(silentUrl()); mAudio.loop = true; }
@@ -1430,10 +1455,12 @@ function natInit() {
   })();
   return natInitP;
 }
+/* abaixa a música só enquanto o som do app toca e devolve o volume em seguida (foco de áudio do Android) */
+function natDuck(ms) { const fn = natP('FerroNotif'); if (fn && fn.duck) try { fn.duck({ms: Math.round(Math.max(600, Math.min(30000, ms)))}); } catch (e) {} }
 function natAct(id) {
   if (!run || run.phase === 'done') return;
   if (id === 'next') runNext(); else if (id === 'back') runBack(); else if (id === 'pause') H.pauseBtn(); else if (id === 'plus') H.restPlus();
-  natLast = ''; natSync(); if (view.n === 'run') render();
+  natLast = ''; clearTimeout(natT); natPush(); if (view.n === 'run') render();
 }
 const NCOL = {warmup: '#46BF78', prepare: '#E6B422', exec: '#F0654D', rest: '#4D96E8', paused: '#97A3B0'};
 function natPayload() {
@@ -1458,7 +1485,11 @@ function natPayload() {
 function natSync() {
   if (!NAT) return;
   clearTimeout(natT);
-  natT = setTimeout(async () => {
+  natT = setTimeout(natPush, 120);
+}
+/* sem setTimeout: com o app em segundo plano o Android segura os timers da página, mas um toque no botão da notificação precisa atualizar na hora */
+async function natPush() {
+  {
     const ln = natP('LocalNotifications'), ka = natP('KeepAwake');
     try {
       if (!run || run.phase === 'done') {
@@ -1469,7 +1500,7 @@ function natSync() {
       const fn = natP('FerroNotif');
       if (fn) {
         const o = natPayload(), key = JSON.stringify(o);
-        if (key !== natLast) { natLast = key; await fn.show(o); try { ka && ka.keepAwake(); } catch (e) {} }
+        if (key !== natLast) { if (natLast && JSON.parse(natLast).label !== o.label) natClearAlert(); natLast = key; await fn.show(o); try { ka && ka.keepAwake(); } catch (e) {} }
         const v = phaseView(); natAlarmSync((!run.pausedAt && v.count) ? Date.now() + v.rem : 0);
         return;
       }
@@ -1487,19 +1518,20 @@ function natSync() {
       }
       natAlarmSync(end);
     } catch (e) {}
-  }, 120);
+  }
 }
+function natClearAlert() { const ln = natP('LocalNotifications'); if (ln) try { ln.removeDeliveredNotifications({notifications: [{id: 2}]}); } catch (e) {} }
 async function natAlarmSync(end) {
   const ln = natP('LocalNotifications'); if (!ln) return;
   const want = (document.visibilityState === 'hidden' && end && end - Date.now() > 1500) ? Math.round(end / 1000) * 1000 : 0;
   if (want === natAlarm) return;
   natAlarm = want;
   try {
-    await ln.cancel({notifications: [{id: 2}]});
+    await ln.cancel({notifications: [{id: 2}]}); try { await ln.removeDeliveredNotifications({notifications: [{id: 2}]}); } catch (e) {}
     if (want) { const ex = curEx(); await ln.schedule({notifications: [{id: 2, title: run.phase === 'rest' ? 'Fim do descanso' : run.phase === 'prepare' ? 'Começar a série' : 'Tempo da série terminou', body: `${exLabel(ex)} · série ${run.setIdx + 1}/${ex.sets.length}`, channelId: 'ferro-alarme', smallIcon: 'ic_stat_ferro', iconColor: '#e8553a', schedule: {at: new Date(want), allowWhileIdle: true}}]}); }
   } catch (e) {}
 }
-document.addEventListener('visibilitychange', () => { if (NAT && run && run.phase !== 'done') { const v = phaseView(); natAlarmSync((!run.pausedAt && v.count) ? Date.now() + v.rem : 0); } });
+document.addEventListener('visibilitychange', () => { if (NAT && document.visibilityState === 'visible') natClearAlert(); if (NAT && run && run.phase !== 'done') { const v = phaseView(); natAlarmSync((!run.pausedAt && v.count) ? Date.now() + v.rem : 0); } });
 if (NAT && run && run.phase !== 'done') setTimeout(() => natInit().then(natSync), 300);
 async function natShare(name, text) {
   const fs = natP('Filesystem'), sh = natP('Share'); if (!fs || !sh) return null;
@@ -1531,7 +1563,7 @@ function beep(n = 1) {
   if (!S.settings.sound) return;
   try {
     ac();
-    if (!n) { holdAudio(300); return; }
+    if (!n) { holdAudio(300, true); return; }
     for (let i = 0; i < n; i++) { const o = audio.createOscillator(), g = audio.createGain(); o.frequency.value = 880; o.connect(g); g.connect(audio.destination); const t = audio.currentTime + i * .28; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.3, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + .2); o.start(t); o.stop(t + .22); }
     holdAudio(n * 300 + 1200);
   } catch (e) {}
@@ -1579,9 +1611,19 @@ function runNext() {
 }
 function runBack() {
   if (!run) return;
-  if (run.phase === 'exec') { setPhase(prepPh()); persistRun(); render(); }
+  if (run.phase === 'exec' && prepPh() === 'prepare') { setPhase('prepare'); persistRun(); render(); }
   else if (run.phase === 'rest' && run.prevPtr) { const [i, j] = run.prevPtr; run.exIdx = i; run.setIdx = j; run.exs[i].sets[j].done = false; run.prevPtr = null; run.sndDone = true; setPhase('exec'); persistRun(); render(); toast('Série reaberta'); }
-  else if (run.phase === 'prepare' || run.phase === 'rest') { setPhase(run.phase); persistRun(); render(); }
+  else if (run.phase === 'prepare' || run.phase === 'exec') {
+    const pv = prevDone();
+    if (pv) { const [i, j] = pv; run.exIdx = i; run.setIdx = j; run.exs[i].sets[j].done = false; run.prevPtr = null; run.sndDone = true; setPhase('exec'); persistRun(); render(); toast('Série anterior reaberta'); }
+    else { setPhase(run.phase); persistRun(); render(); toast('Esta é a primeira série'); }
+  }
+}
+function prevDone() {
+  if (run.prevPtr) return run.prevPtr;
+  for (let j = run.setIdx - 1; j >= 0; j--) if (curEx().sets[j].done) return [run.exIdx, j];
+  for (let i = run.exIdx - 1; i >= 0; i--) { const a = run.exs[i].sets; for (let j = a.length - 1; j >= 0; j--) if (a[j].done) return [i, j]; }
+  return null;
 }
 function phaseView() {
   const P = run.phase, ex = curEx(), s = ex && ex.sets[run.setIdx], el = elapsed();
@@ -1711,11 +1753,12 @@ function pickList(q) {
   return (items || '<div class="empty">Nada encontrado.</div>') + (hidden ? `<div class="muted small" style="padding:10px 4px">${hidden} exercício(s) oculto(s): equipamento não marcado em Minha academia.</div>` : '');
 }
 const normTxt = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-const ALIAS = {'triceps-polia-horizontal': 'extensao de triceps por tras acima da cabeca polia alta de costas para a polia overhead cable horizontal', 'triceps-frances-polia': 'triceps frances na polia vertical acima da cabeca overhead polia baixa', 'triceps-corda': 'pushdown triceps pulley triceps corda', 'puxada-estendida': 'pullover na polia pulldown braco estendido', 'puxada-alta': 'pulldown puxada frente', 'triceps-testa': 'skull crusher', 'pelvica': 'hip thrust', 'stiff': 'romanian deadlift terra romeno', 'face-pull': 'face pull', 'coice-polia': 'kickback gluteo', 'coice-polia-flexionado': 'kickback', 'coice-polia-4apoios': 'kickback quatro apoios', 'coice-diagonal-polia': 'kickback diagonal', 'abducao-polia': 'gluteo medio abducao lateral', 'pull-through': 'pull through', 'remada-alta': 'upright row', 'remada-alta-polia': 'upright row', 'remada-alta-halteres': 'upright row alter'};
+const ALIAS = {'rosca-polia-alta': 'biceps polia alta cross crossover cabo duplo biceps crucifixo biceps bracos abertos', 'rosca-polia-alta-uni': 'biceps unilateral polia alta cross crossover cabo um braco', 'rosca-polia-baixa-uni': 'biceps unilateral polia baixa cross cabo um braco', 'rosca-inclinada-halteres': 'biceps rosca inclinada banco inclinado halter halteres', 'rosca-inclinada-polia': 'biceps rosca inclinada banco inclinado polia baixa cabo cross', 'rosca-spider': 'biceps spider aranha banco inclinado de brucos halter', 'rosca-bayesiana': 'biceps bayesian bayesiana polia cabo de costas cross', 'rosca-concentrada-polia': 'biceps concentrada polia cabo cross sentado', 'rosca-drag': 'biceps drag arrastada barra', 'rosca-zottman': 'biceps zottman antebraco halter', 'rosca-21': 'biceps rosca 21 parciais barra', 'triceps-polia-horizontal': 'extensao de triceps por tras acima da cabeca polia alta de costas para a polia overhead cable horizontal', 'triceps-frances-polia': 'triceps frances na polia vertical acima da cabeca overhead polia baixa', 'triceps-corda': 'pushdown triceps pulley triceps corda', 'puxada-estendida': 'pullover na polia pulldown braco estendido', 'puxada-alta': 'pulldown puxada frente', 'triceps-testa': 'skull crusher', 'pelvica': 'hip thrust', 'stiff': 'romanian deadlift terra romeno', 'face-pull': 'face pull', 'coice-polia': 'kickback gluteo', 'coice-polia-flexionado': 'kickback', 'coice-polia-4apoios': 'kickback quatro apoios', 'coice-diagonal-polia': 'kickback diagonal', 'abducao-polia': 'gluteo medio abducao lateral', 'pull-through': 'pull through', 'remada-alta': 'upright row', 'remada-alta-polia': 'upright row', 'remada-alta-halteres': 'upright row alter'};
 const SYN = {Dorsais: 'costas', Trapézio: 'costas', Lombares: 'costas lombar', Peitoral: 'peito', Quadríceps: 'perna coxa', Posteriores: 'perna posterior', Glúteos: 'gluteo bumbum perna', Panturrilhas: 'perna batata', Bíceps: 'braco', Tríceps: 'braco', Antebraços: 'braco', Abdômen: 'abs barriga', Oblíquos: 'abs', Ombros: 'ombro deltoide', Adutores: 'perna', Cardio: 'aerobico'};
 const exHay = e => normTxt([e.name, ALIAS[e.id] || '', e.primary.join(' '), e.primary.map(m => SYN[m] || '').join(' '), (e.eq || []).map(i => { const q = EQUIP.find(x => x.id === i) || {name: i, cat: ''}; return q.name + ' ' + (q.cat === 'Máquinas' ? 'maquina aparelho' : q.cat); }).join(' '), (e.eq || []).join(' '), (ACC[e.id] || []).join(' '), (GRIPS[e.id] || []).join(' '), PAT_NAME[PAT[e.id]] || '', /polia|crossover/.test((e.eq || []).join(' ')) ? 'polia cabo cross' : '', (e.eq || []).length ? '' : 'sem equipamento peso do corpo livre'].join(' '));
 function pickItem(e) { const on = k => pickMany && pickChosen.has(k) ? ' on' : ''; const chips = (ACC[e.id] || []).map(a => `<button class="mchip${on(pkKey(e.id, a, ''))}" data-act="pickIt" data-id="${e.id}" data-v="${esc(a)}">${esc(a)}</button>`).concat((GRIPS[e.id] || []).map(g => `<button class="mchip${on(pkKey(e.id, '', g))}" data-act="pickIt" data-id="${e.id}" data-g="${esc(g)}">Pegada ${esc(g.toLowerCase())}</button>`)).join(''); return `<div class="pk" style="position:relative">${e.id.startsWith('c-') ? `<button class="ib" style="position:absolute;right:0;top:6px" data-act="delCustomAsk" data-id="${e.id}" aria-label="Excluir exercício criado">${ic('x')}</button>` : ''}<button data-act="pickIt" data-id="${e.id}" class="${on(pkKey(e.id, '', '')).trim() ? 'sel' : ''}">${pickMany ? `<span class="chk ${pickChosen.has(pkKey(e.id, '', '')) ? 'on' : ''}">${pickChosen.has(pkKey(e.id, '', '')) ? ic('ok') : ''}</span>` : ''}${tileOf(e)}<span><b style="font-weight:600">${esc(e.name)}</b><br><span class="muted small">${esc(e.primary.join(', '))}${(e.eq || []).length ? ' · ' + esc(e.eq.map(i => (EQUIP.find(x => x.id === i) || {name: i}).name).join(', ')) : ' · sem equipamento'}</span></span></button>${chips ? `<div class="chips" style="padding:0 0 10px 56px">${chips}</div>` : ''}</div>`; }
 const PAT = {
+  'rosca-polia-alta': 'curl', 'rosca-polia-alta-uni': 'curl', 'rosca-polia-baixa-uni': 'curl', 'rosca-inclinada-halteres': 'curl', 'rosca-inclinada-polia': 'curl', 'rosca-spider': 'curl', 'rosca-bayesiana': 'curl', 'rosca-concentrada-polia': 'curl', 'rosca-drag': 'curl', 'rosca-zottman': 'curl', 'rosca-21': 'curl',
   'supino-reto': 'push-h', 'supino-inclinado': 'push-h', 'supino-halteres': 'push-h', 'supino-maquina': 'push-h', 'flexao': 'push-h', 'paralelas-peito': 'push-h',
   'crucifixo': 'fly', 'crucifixo-halteres': 'fly', 'crossover-peito': 'fly',
   'puxada-alta': 'pull-v', 'puxada-invertida': 'pull-v', 'barra-fixa': 'pull-v', 'puxada-estendida': 'pullover',
@@ -1912,10 +1955,10 @@ const H = {
   editSet: d => {
     const e = run.exs[+d.i], s = e.sets[+d.j];
     modal(`<h2>Série ${+d.j + 1}</h2>${e.type === 'time' ? `<div class="field"><span class="lbl">Segundos</span><div class="step"><button data-act="stp" data-t="s_secs" data-by="-5" aria-label="Menos 5">−</button><input type="number" inputmode="numeric" id="s_secs" value="${s.secs}" aria-label="Segundos"><button data-act="stp" data-t="s_secs" data-by="5" aria-label="Mais 5">+</button></div></div>` : `<div class="field"><span class="lbl">Repetições</span><div class="step"><button data-act="stp" data-t="s_reps" data-by="-1" aria-label="Menos 1">−</button><input type="number" inputmode="numeric" id="s_reps" value="${s.reps}" aria-label="Repetições"><button data-act="stp" data-t="s_reps" data-by="1" aria-label="Mais 1">+</button></div></div><div class="field"><span class="lbl">Carga (kg e lb)</span><div class="step"><button data-act="stp" data-t="s_kg" data-by="-2.5" aria-label="Menos 2,5 kg">−</button>${cvg('s_kg', null, s.kg, ['kg', 'lb'], {kg: 's_kg', lb: 's_lb'})}<button data-act="stp" data-t="s_kg" data-by="2.5" aria-label="Mais 2,5 kg">+</button></div></div><div class="field"><label class="lbl" for="s_rir">RIR (repetições na reserva)</label><select id="s_rir">${rirOpts(s.rir ?? S.settings.defaultRir)}</select></div><div class="field"><span class="lbl">Cadência desta série</span>${tRow('s_t', s.tempo || e.tempo || S.settings.tempo, '')}<span class="muted small">Excêntrica · pausa · concêntrica · pausa, em segundos.</span></div><label class="chkrow"><input type="checkbox" id="s_warm" ${s.warm ? 'checked' : ''}> Série de aquecimento (não conta no volume)</label>
-    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" style="flex:1" data-act="saveSet" data-i="${d.i}" data-j="${d.j}" data-ap="kg">Aplicar carga às séries restantes</button><button class="btn sm" style="flex:1" data-act="saveSet" data-i="${d.i}" data-j="${d.j}" data-ap="reps">Aplicar reps às séries restantes</button></div>`}<button class="btn primary block" data-act="saveSet" data-i="${d.i}" data-j="${d.j}">Salvar</button><button class="btn block danger" data-act="delSet" data-i="${d.i}" data-j="${d.j}">Remover série</button>`);
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" style="flex:1" data-act="saveSet" data-i="${d.i}" data-j="${d.j}" data-ap="kg">Aplicar carga às séries restantes</button><button class="btn sm" style="flex:1" data-act="saveSet" data-i="${d.i}" data-j="${d.j}" data-ap="reps">Aplicar reps às séries restantes</button></div>`}<label class="chkrow"><input type="checkbox" id="s_done" ${s.done ? 'checked' : ''}> Série feita${s.done ? ' (desmarque para refazer)' : ''}</label><button class="btn primary block" data-act="saveSet" data-i="${d.i}" data-j="${d.j}">Salvar</button><button class="btn block danger" data-act="delSet" data-i="${d.i}" data-j="${d.j}">Remover série</button>`);
   },
   stp: d => { const el = document.getElementById(d.t); el.value = Math.max(0, Math.round((num(el.value) + +d.by) * 10) / 10); el.dispatchEvent(new Event('input', {bubbles: true})); },
-  saveSet: d => { const e = run.exs[+d.i], s = e.sets[+d.j]; if (e.type === 'time') s.secs = Math.max(1, Math.round(num(val('s_secs')))); else { s.reps = Math.max(0, Math.round(num(val('s_reps')))); s.kg = Math.max(0, cvRead('s_kg')); s.rir = +val('s_rir'); s.warm = !!(document.getElementById('s_warm') || {}).checked; { const t = tRowRead('s_t'); s.tempo = t === e.tempo ? '' : t; } if (d.ap) { const n = applyRest(e, +d.j, d.ap); toast(n ? `${d.ap === 'kg' ? 'Carga' : 'Repetições'} aplicada${d.ap === 'kg' ? '' : 's'} a mais ${n} série${n > 1 ? 's' : ''}` : 'Não há séries restantes'); } } persistRun(); closeModal(); render(); },
+  saveSet: d => { const e = run.exs[+d.i], s = e.sets[+d.j]; setDoneFrom(+d.i, +d.j); if (e.type === 'time') s.secs = Math.max(1, Math.round(num(val('s_secs')))); else { s.reps = Math.max(0, Math.round(num(val('s_reps')))); s.kg = Math.max(0, cvRead('s_kg')); s.rir = +val('s_rir'); s.warm = !!(document.getElementById('s_warm') || {}).checked; { const t = tRowRead('s_t'); s.tempo = t === e.tempo ? '' : t; } if (d.ap) { const n = applyRest(e, +d.j, d.ap); toast(n ? `${d.ap === 'kg' ? 'Carga' : 'Repetições'} aplicada${d.ap === 'kg' ? '' : 's'} a mais ${n} série${n > 1 ? 's' : ''}` : 'Não há séries restantes'); } } persistRun(); closeModal(); render(); },
   qEdit: d => {
     const e = run.exs[+d.i], s = e.sets[+d.j], f = d.f;
     if (f === 'secs') return H.editSet(d);
@@ -2198,7 +2241,7 @@ if (!inClaude() && navigator.storage && navigator.storage.persist) navigator.sto
 </script>
 
 <script>
-if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202610212020').catch(() => {});
+if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202610212031').catch(() => {});
 </script>
 </body>
 </html>
