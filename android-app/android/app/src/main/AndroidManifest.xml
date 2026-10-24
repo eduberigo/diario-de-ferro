@@ -25,6 +25,7 @@
         </activity>
 
         <receiver android:name=".FerroNotifReceiver" android:exported="false" />
+        <receiver android:name=".FerroAlarmReceiver" android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

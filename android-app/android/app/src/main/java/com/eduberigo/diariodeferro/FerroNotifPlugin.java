@@ -1,5 +1,6 @@
 package com.eduberigo.diariodeferro;
 
+import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -10,6 +11,8 @@ import android.graphics.Color;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Build;
@@ -58,9 +61,131 @@ public class FerroNotifPlugin extends Plugin {
             ch.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
             nm.createNotificationChannel(ch);
         }
+        if (nm.getNotificationChannel(ALERT_CH) == null) {
+            NotificationChannel ch = new NotificationChannel(ALERT_CH, "Aviso de fim do cronômetro", NotificationManager.IMPORTANCE_HIGH);
+            ch.setDescription("Aparece quando o descanso ou o preparo termina com o app fechado");
+            ch.setSound(null, null); // o som é tocado pelo app, abaixando a música só durante o aviso
+            ch.enableVibration(true);
+            ch.setVibrationPattern(new long[] {0, 260, 140, 260});
+            ch.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+            nm.createNotificationChannel(ch);
+        }
         try {
             nm.deleteNotificationChannel("ferro-treino");
         } catch (Exception ignored) {}
+    }
+
+    // ---------- aviso de fim do cronômetro (alarme próprio, funciona com o app em segundo plano) ----------
+    static final String ALERT_CH = "ferro-aviso";
+    static final int ALERT_ID = 7002;
+
+    static PendingIntent alarmIntent(Context ctx, String title, String body, String sound) {
+        Intent i = new Intent(ctx, FerroAlarmReceiver.class);
+        i.setAction(ACTION + ".ALARM");
+        if (title != null) i.putExtra("title", title);
+        if (body != null) i.putExtra("body", body);
+        if (sound != null) i.putExtra("sound", sound);
+        return PendingIntent.getBroadcast(ctx, 200, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    @PluginMethod
+    public void alarm(PluginCall call) {
+        Context ctx = getContext();
+        createChannel(ctx);
+        long at = call.getData().optLong("at", 0L);
+        AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+        if (am == null || at <= System.currentTimeMillis()) {
+            call.resolve();
+            return;
+        }
+        PendingIntent pi = alarmIntent(ctx, call.getString("title", "Diário de Ferro"), call.getString("body", ""), call.getString("sound", "beep3"));
+        try {
+            if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+            else am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+        } catch (SecurityException e) {
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void cancelAlarm(PluginCall call) {
+        Context ctx = getContext();
+        AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+        if (am != null) am.cancel(alarmIntent(ctx, null, null, null));
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void clearAlert(PluginCall call) {
+        NotificationManagerCompat.from(getContext()).cancel(ALERT_ID);
+        call.resolve();
+    }
+
+    /** Mostra o aviso (fica ~10 s na tela) e toca o som abaixando a música só durante ele. */
+    static void fireAlert(Context ctx, String title, String body, String sound, Runnable done) {
+        createChannel(ctx);
+        Intent open = ctx.getPackageManager().getLaunchIntentForPackage(ctx.getPackageName());
+        NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, ALERT_CH)
+            .setSmallIcon(R.drawable.ic_stat_ferro)
+            .setColor(0xFF4D96E8)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setVibrate(new long[] {0, 260, 140, 260})
+            .setSilent(false)
+            .setAutoCancel(true)
+            .setTimeoutAfter(10000);
+        if (open != null) b.setContentIntent(PendingIntent.getActivity(ctx, 1, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
+        try {
+            NotificationManagerCompat.from(ctx).notify(ALERT_ID, b.build());
+        } catch (SecurityException ignored) {}
+        playWithDuck(ctx, "bell".equals(sound) ? R.raw.ferro_bell : R.raw.ferro_beep3, done);
+    }
+
+    @SuppressWarnings("deprecation")
+    static void playWithDuck(Context ctx, int res, Runnable done) {
+        AudioManager am = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
+        AudioAttributes attrs = new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build();
+        final AudioFocusRequest req = Build.VERSION.SDK_INT >= 26
+            ? new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).setAudioAttributes(attrs).setOnAudioFocusChangeListener(f -> {}).build()
+            : null;
+        final AudioManager.OnAudioFocusChangeListener legacy = f -> {};
+        if (am != null) {
+            if (req != null) am.requestAudioFocus(req);
+            else am.requestAudioFocus(legacy, AudioManager.STREAM_NOTIFICATION, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
+        }
+        final Handler h = new Handler(Looper.getMainLooper());
+        final Runnable finish = () -> {
+            if (am != null) {
+                if (req != null) am.abandonAudioFocusRequest(req);
+                else am.abandonAudioFocus(legacy);
+            }
+            if (done != null) done.run();
+        };
+        try {
+            MediaPlayer mp = new MediaPlayer();
+            mp.setAudioAttributes(attrs);
+            mp.setDataSource(ctx, Uri.parse("android.resource://" + ctx.getPackageName() + "/" + res));
+            mp.setOnCompletionListener(m -> {
+                m.release();
+                h.postDelayed(finish, 350);
+            });
+            mp.setOnErrorListener((m, w, x) -> {
+                m.release();
+                finish.run();
+                return true;
+            });
+            mp.prepare();
+            mp.start();
+        } catch (Exception e) {
+            finish.run();
+        }
     }
 
     void fire(String action) {

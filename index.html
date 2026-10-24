@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12161b">
-<script>window.FERRO_BUILD = '202610232313';</script>
+<script>window.FERRO_BUILD = '202610241353';</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -278,6 +278,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .swrap .rmore{position:absolute;right:6px;top:50%;transform:translateY(-50%);z-index:2}
 .swrap.open .rmore{display:none}
 .sacts{position:absolute;right:0;top:0;bottom:0;display:flex}
+.swrap.sset{border:0;border-radius:16px;overflow:hidden}.swrap.sset .sacts button{width:96px;border-radius:0 16px 16px 0}
+.swrap.sset .setline{position:relative;z-index:1;background:var(--bg);transition:transform .18s ease;touch-action:pan-y}
+.swrap.sset:not(.open) .sacts{visibility:hidden}.dnd .swrap.sset .sacts{visibility:hidden}
 .sacts button{width:84px;color:#fff;font-weight:600;font-size:13px}
 .sacts .sa1{background:var(--rest)}.sacts .sa2{background:#7a8591}.sacts .sa3{background:var(--danger)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -1587,7 +1590,7 @@ async function natPush() {
       const fn = natP('FerroNotif');
       if (fn) {
         const o = natPayload(), key = JSON.stringify(o);
-        if (key !== natLast) { if (natLast && JSON.parse(natLast).label !== o.label) natClearAlert(); natLast = key; await fn.show(o); try { ka && ka.keepAwake(); } catch (e) {} }
+        if (key !== natLast) { if (natLast && JSON.parse(natLast).label !== o.label && !(fn.alarm)) natClearAlert(); natLast = key; await fn.show(o); try { ka && ka.keepAwake(); } catch (e) {} }
         const v = phaseView(); natAlarmSync((!run.pausedAt && v.count) ? Date.now() + v.rem : 0);
         return;
       }
@@ -1607,12 +1610,20 @@ async function natPush() {
     } catch (e) {}
   }
 }
-function natClearAlert() { const ln = natP('LocalNotifications'); if (ln) try { ln.removeDeliveredNotifications({notifications: [{id: 2}]}); } catch (e) {} }
+function natClearAlert() { const fn = natP('FerroNotif'); if (fn && fn.clearAlert) try { fn.clearAlert(); } catch (e) {} const ln = natP('LocalNotifications'); if (ln) try { ln.removeDeliveredNotifications({notifications: [{id: 2}]}); } catch (e) {} }
 async function natAlarmSync(end) {
-  const ln = natP('LocalNotifications'); if (!ln) return;
+  const ln = natP('LocalNotifications'), fn = natP('FerroNotif'); if (!ln && !fn) return;
   const want = (document.visibilityState === 'hidden' && end && end - Date.now() > 1500) ? Math.round(end / 1000) * 1000 : 0;
   if (want === natAlarm) return;
   natAlarm = want;
+  if (fn && fn.alarm) {
+    try {
+      if (!want) { await fn.cancelAlarm(); return; }
+      const ex = curEx();
+      await fn.alarm({at: want, title: run.phase === 'rest' ? 'Fim do descanso' : run.phase === 'prepare' ? 'Começar a série' : 'Tempo da série terminou', body: `${exLabel(ex)} · série ${run.setIdx + 1} de ${ex.sets.length}`, sound: run.phase === 'prepare' ? 'bell' : 'beep3'});
+    } catch (e) {}
+    return;
+  }
   try {
     await ln.cancel({notifications: [{id: 2}]}); try { await ln.removeDeliveredNotifications({notifications: [{id: 2}]}); } catch (e) {}
     if (want) { const ex = curEx(); await ln.schedule({notifications: [{id: 2, title: run.phase === 'rest' ? 'Fim do descanso' : run.phase === 'prepare' ? 'Começar a série' : 'Tempo da série terminou', body: `${exLabel(ex)} · série ${run.setIdx + 1}/${ex.sets.length}`, channelId: 'ferro-alarme', smallIcon: 'ic_stat_ferro', iconColor: '#e8553a', schedule: {at: new Date(want), allowWhileIdle: true}}]}); }
@@ -1620,6 +1631,17 @@ async function natAlarmSync(end) {
 }
 document.addEventListener('visibilitychange', () => { if (NAT && document.visibilityState === 'visible') natClearAlert(); if (NAT && run && run.phase !== 'done') { const v = phaseView(); natAlarmSync((!run.pausedAt && v.count) ? Date.now() + v.rem : 0); } });
 if (NAT && run && run.phase !== 'done') setTimeout(() => natInit().then(natSync), 300);
+if (NAT && natP('App')) try {
+  let lastBack = 0;
+  natP('App').addListener('backButton', () => {
+    if ($('#modal').innerHTML) return closeModal();
+    if (stack.length) return back();
+    if (view.n !== 'home') return tab('home');
+    const now = Date.now();
+    if (now - lastBack < 2200) { const ap = natP('App'); if (run && run.phase !== 'done') ap.minimizeApp(); else ap.exitApp(); return; }
+    lastBack = now; toast(run && run.phase !== 'done' ? 'Toque em voltar de novo para sair (o treino continua)' : 'Toque em voltar de novo para sair');
+  });
+} catch (e) {}
 async function natShare(name, text) {
   const fs = natP('Filesystem'), sh = natP('Share'); if (!fs || !sh) return null;
   try {
@@ -1748,7 +1770,7 @@ function runView() {
     const warmBtn = ex.type === 'time' ? '' : `<button class="wtag ${s.warm ? 'on' : ''}" data-act="togWarm" data-i="${run.exIdx}" data-j="${i}" aria-pressed="${!!s.warm}" aria-label="Série de aquecimento">${s.warm ? 'Aquec.' : 'Válida'}</button>`;
     const body = ex.type === 'time' ? (isCardio(ex) ? `<span ${qa('secs')}><span>${fmtMin(s.secs)}</span><small>min</small></span>` : `<span ${qa('secs')}><span>${s.secs}</span><small>s</small></span>`)
       : `<div class="sgrid" style="--fs:${fs}px"><span ${qa('kg')} aria-label="Editar carga em kg"><b>${kgT}</b><small>kg</small></span><span ${qa('lb')} aria-label="Editar carga em libras"><b>${lbT}</b><small>lb</small></span><span class="sx" aria-hidden="true">×</span><span ${qa('reps')} aria-label="Editar repetições"><b>${rT}</b><small>reps</small></span></div><div class="smeta"><span class="chipm">RIR ${s.rir ?? S.settings.defaultRir}</span>${tp}<span style="flex:1"></span>${warmBtn}</div>`;
-    return `<div class="setline ${cls}${s.warm ? ' wset' : ''}"><span class="sn">${i + 1}</span><div class="setcard ${ex.type === 'time' ? '' : 'sc2'}" role="button" tabindex="0" style="cursor:pointer" data-act="editSet" data-i="${run.exIdx}" data-j="${i}" aria-label="Detalhes da série ${i + 1}">${body}</div></div>`;
+    return `<div class="swrap sset"><div class="sacts"><button class="sa3" data-act="delSet" data-i="${run.exIdx}" data-j="${i}">Excluir</button></div><div class="setline ${cls}${s.warm ? ' wset' : ''}" data-swipe="1"><span class="sn">${i + 1}</span><div class="setcard ${ex.type === 'time' ? '' : 'sc2'}" role="button" tabindex="0" style="cursor:pointer" data-act="editSet" data-i="${run.exIdx}" data-j="${i}" aria-label="Detalhes da série ${i + 1}">${body}</div></div></div>`;
   }).join('');
   const list = run.exs.map((e, i) => {
     const done = e.sets.every(s => s.done), tag = i === run.exIdx ? '<span class="tag cur">Em execução</span><br>' : (i === nxt ? '<span class="tag nxt">Próximo</span><br>' : '');
@@ -2087,7 +2109,7 @@ const H = {
     let n = 0; if (d.all) n = applyRest(e, +d.j, d.f === 'reps' ? 'reps' : 'kg');
     persistRun(); closeModal(); render(); if (d.all) toast(n ? `Aplicado a mais ${n} série${n > 1 ? 's' : ''}` : 'Não há séries restantes');
   },
-  delSet: d => { const e = run.exs[+d.i]; if (e.sets.length < 2) return toast('Mantenha ao menos uma série'); e.sets.splice(+d.j, 1); if (run.exIdx === +d.i && run.setIdx >= e.sets.length) run.setIdx = e.sets.length - 1; persistRun(); closeModal(); render(); },
+  delSet: d => { const e = run.exs[+d.i]; if (e.sets.length < 2) { closeSwipes(); return toast('Mantenha ao menos uma série'); } e.sets.splice(+d.j, 1); if (run.prevPtr && run.prevPtr[0] === +d.i) { if (run.prevPtr[1] === +d.j) run.prevPtr = null; else if (run.prevPtr[1] > +d.j) run.prevPtr = [run.prevPtr[0], run.prevPtr[1] - 1]; } if (run.exIdx === +d.i && run.setIdx > +d.j) run.setIdx--; toast('Série removida'); if (run.exIdx === +d.i && run.setIdx >= e.sets.length) run.setIdx = e.sets.length - 1; persistRun(); closeModal(); render(); },
   addSet: () => { const e = curEx(), l = e.sets[e.sets.length - 1]; e.sets.push(Object.assign({}, l, {done: false, actual: undefined})); persistRun(); render(); },
   noteEx: () => modal(`<h2>Nota</h2><textarea id="n_t" aria-label="Nota do exercício">${esc(curEx().note)}</textarea><button class="btn primary block" data-act="saveNote">Salvar</button>`),
   saveNote: () => { curEx().note = val('n_t').trim(); persistRun(); closeModal(); render(); },
@@ -2323,25 +2345,27 @@ function endDrag() {
 }
 /* deslizar um treino para a esquerda mostra as ações */
 let swp = null;
-function closeSwipes(except) { document.querySelectorAll('.swrap.open').forEach(w => { if (w !== except) { w.classList.remove('open'); const r = w.querySelector('.wrow'); if (r) r.style.transform = ''; } }); }
+function closeSwipes(except) { document.querySelectorAll('.swrap.open').forEach(w => { if (w !== except) { w.classList.remove('open'); const r = w.querySelector('[data-swipe]'); if (r) r.style.transform = ''; const a = w.querySelector('.sacts'); if (a) a.style.visibility = ''; } }); }
 document.addEventListener('pointerdown', e => {
   const row = e.target.closest('[data-swipe]');
   if (!e.target.closest('.swrap.open')) closeSwipes();
   if (!row || e.button > 0) return;
   const wrap = row.closest('.swrap');
-  swp = {row, wrap, x0: e.clientX, y0: e.clientY, base: wrap.classList.contains('open') ? -252 : 0, on: false};
+  const sw = (wrap.querySelector('.sacts') || {}).offsetWidth || 252;
+  swp = {row, wrap, sw, x0: e.clientX, y0: e.clientY, base: wrap.classList.contains('open') ? -sw : 0, on: false};
 });
 document.addEventListener('pointermove', e => {
   if (!swp) return; const dx = e.clientX - swp.x0, dy = e.clientY - swp.y0;
   if (!swp.on) { if (Math.abs(dy) > 12) { swp = null; return; } if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) { swp.on = true; swp.row.style.transition = 'none'; } else return; }
-  swp.dx = dx; swp.row.style.transform = `translateX(${Math.max(-252, Math.min(0, swp.base + dx))}px)`;
+  if (swp.wrap.classList.contains('sset')) swp.wrap.querySelector('.sacts').style.visibility = 'visible';
+  swp.dx = dx; swp.row.style.transform = `translateX(${Math.max(-swp.sw, Math.min(0, swp.base + dx))}px)`;
 });
 function endSwipe() {
   if (!swp) return; const s0 = swp; swp = null; if (!s0.on) return;
   s0.row.style.transition = ''; eatClick = true; setTimeout(() => eatClick = false, 350);
   const pos = s0.base + (s0.dx || 0);
-  if (pos < -90) { closeSwipes(s0.wrap); s0.wrap.classList.add('open'); s0.row.style.transform = 'translateX(-252px)'; }
-  else { s0.wrap.classList.remove('open'); s0.row.style.transform = ''; }
+  if (pos < -Math.min(90, s0.sw * .5)) { closeSwipes(s0.wrap); s0.wrap.classList.add('open'); s0.row.style.transform = `translateX(-${s0.sw}px)`; }
+  else { s0.wrap.classList.remove('open'); s0.row.style.transform = ''; const a = s0.wrap.querySelector('.sset .sacts, .sacts'); if (s0.wrap.classList.contains('sset') && a) a.style.visibility = ''; }
 }
 document.addEventListener('pointerup', endSwipe);
 document.addEventListener('pointercancel', endSwipe);
@@ -2355,7 +2379,7 @@ if (!inClaude() && navigator.storage && navigator.storage.persist) navigator.sto
 </script>
 
 <script>
-if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202610232313').catch(() => {});
+if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202610241353').catch(() => {});
 </script>
 </body>
 </html>
