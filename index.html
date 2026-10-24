@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12161b">
-<script>window.FERRO_BUILD = '202610241428';</script>
+<script>window.FERRO_BUILD = '202610242040';</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -762,7 +762,13 @@ function verText() {
 if (NAT && natP('App')) try { natP('App').getInfo().then(i => { natVer = {v: i.version, b: i.build}; const el = document.getElementById('verinfo'); if (el) el.textContent = verText(); }).catch(() => {}); } catch (e) {}
 const txtName = n => n.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '').toLowerCase() + '.txt';
 const kgx = kg => `${fmtN(kg)} kg (${f1(kg * LB)} lb)`;
-function planTxt(w, r) {
+function routineTxt(r) {
+  const d = rdef(r), L = [`ROTINA ${r.name.toUpperCase()}`, `Padrão: ${d.sets} séries · ${d.repsMin}–${d.repsMax} reps · ${d.rest} s de descanso`, `${r.workouts.length} treino${r.workouts.length === 1 ? '' : 's'}: ${r.workouts.map(w => w.name).join(', ')}`, ''];
+  r.workouts.forEach(w => { L.push('════════════════════════════════', planTxt(w, null, true), ''); });
+  L.push(`Gerado pelo Diário de Ferro em ${new Date().toLocaleString('pt-BR')}`);
+  return L.join('\n');
+}
+function planTxt(w, r, bare) {
   const e = est(w), L = [];
   L.push(`${w.name.toUpperCase()}${r ? ' — ' + r.name : ''}`);
   if ((w.groups || []).length) L.push('Grupos: ' + w.groups.join(' · '));
@@ -781,7 +787,7 @@ function planTxt(w, r) {
     if (x.prep != null && x.prep !== '') parts.push(`preparo ${x.prep} s`);
     L.push(`${i + 1}. ${exLabel(Object.assign({name: l.name}, x))}`, '   ' + parts.join(' · '));
   });
-  L.push('', `Gerado pelo Diário de Ferro em ${new Date().toLocaleString('pt-BR')}`);
+  if (!bare) L.push('', `Gerado pelo Diário de Ferro em ${new Date().toLocaleString('pt-BR')}`);
   return L.join('\n');
 }
 function sessTxt(s) {
@@ -1236,7 +1242,10 @@ function rdModal(r) {
 }
 /* ---------- backup ---------- */
 const inClaude = () => !!(window.claude && claude.use);
+/* textos (.txt, .md, .csv) levam a marca UTF-8 no início: sem ela, alguns leitores do Android mostram acentos como caracteres estranhos */
+const withBom = (text, type) => /^text\//.test(type) && text.charCodeAt(0) !== 0xFEFF ? '\uFEFF' + text : text;
 async function shareFile(name, text, type) {
+  text = withBom(text, type); if (/^text\//.test(type) && !/charset/.test(type)) type += ';charset=utf-8';
   if (NAT) { const r = await natShare(name, text); if (r) return r; }
   const blob = new Blob([text], {type});
   try { const f = new File([blob], name, {type}); if (navigator.canShare && navigator.canShare({files: [f]})) { await navigator.share({files: [f], title: name}); return 'shared'; } } catch (e) { if (e && e.name === 'AbortError') return 'cancel'; }
@@ -2064,7 +2073,7 @@ const H = {
   openW: d => { closeModal(); go({n: 'workout', id: d.id}); },
   newRoutine: () => promptBox('Nome da rotina', 'Rotina ' + (S.routines.length + 1), 'doNewRoutine'),
   doNewRoutine: () => { const n = val('pv').trim(); if (!n) return; const r = {id: uid(), name: n, workouts: [], defaults: {sets: 4, repsMin: 8, repsMax: 12, rest: 60}}; S.routines.push(r); persist(); closeModal(); render(); rdModal(r); },
-  routineMenu: d => menu(S.routines.find(r => r.id === d.id).name, [{t: 'Padrão dos exercícios (séries, reps, descanso)', act: 'rdOpen', d: {id: d.id}}, {t: 'Renomear', act: 'renRoutine', d: {id: d.id}}, {t: 'Excluir rotina', act: 'delRoutineAsk', d: {id: d.id}, danger: 1}]),
+  routineMenu: d => menu(S.routines.find(r => r.id === d.id).name, [{t: 'Exportar rotina em texto (.txt)', act: 'txtR', d: {id: d.id}}, {t: 'Padrão dos exercícios (séries, reps, descanso)', act: 'rdOpen', d: {id: d.id}}, {t: 'Renomear', act: 'renRoutine', d: {id: d.id}}, {t: 'Excluir rotina', act: 'delRoutineAsk', d: {id: d.id}, danger: 1}]),
   renRoutine: d => promptBox('Nome da rotina', S.routines.find(r => r.id === d.id).name, 'doRenRoutine', {id: d.id}),
   doRenRoutine: d => { const n = val('pv').trim(); if (!n) return; S.routines.find(r => r.id === d.id).name = n; persist(); closeModal(); render(); },
   delRoutineAsk: d => confirmBox('Excluir rotina?', 'Os treinos dela serão removidos. O histórico fica.', 'delRoutine', {id: d.id}, 'Excluir'),
@@ -2145,6 +2154,7 @@ const H = {
     if ((document.getElementById('rt_plan') || {}).checked) { const f = findW(run.workoutId), c = f && ex.cfg && f.w.exercises.find(x => x.id === ex.cfg.id); if (c) { c.tempo = t; if ((document.getElementById('rt_all') || {}).checked) c.tempoSets = null; persist(); } }
     persistRun(); closeModal(); render(); toast('Cadência ' + t);
   },
+  txtR: async d => { closeModal(); const r = S.routines.find(x => x.id === d.id); if (!r) return; const res = await shareFile(txtName('rotina ' + r.name), routineTxt(r), 'text/plain'); if (res === 'saved') toast('Arquivo salvo'); },
   txtW: async () => { closeModal(); const f = findW(view.id); const r = await shareFile(txtName(f.w.name), planTxt(f.w, f.r), 'text/plain'); if (r === 'saved') toast('Arquivo salvo'); },
   txtS: async d => { const s = sessions.find(x => x.id === d.id); if (!s) return; const r = await shareFile(txtName(s.name + ' ' + dkey(new Date(s.date))), sessTxt(s), 'text/plain'); if (r === 'saved') toast('Arquivo salvo'); },
   qEdit: d => {
@@ -2287,7 +2297,7 @@ const H = {
     const label = per === 'all' ? 'todo o período' : per === 'range' ? `${val('ex_from') || 'início'} a ${val('ex_to') || 'hoje'}` : {'7': 'última semana', '30': 'último mês', '90': 'últimos 3 meses', '365': 'último ano'}[per];
     const list = periodSessions(p); if (!list.length) return toast('Nenhum treino nesse período');
     const fmt = val('ex_fmt'), txt = fmt === 'csv' ? reportCsv(list) : reportMd(list, label), fname = `treinos-${dkey(new Date())}.${fmt}`;
-    if (d.m === 'save') { let dl = null; try { dl = window.claude && claude.use ? await claude.use('downloads') : null; } catch (e) {} if (!dl) { const r = await shareFile(fname, txt, fmt === 'csv' ? 'text/csv' : 'text/markdown'); if (r !== 'cancel') toast('Relatório pronto'); return; } if (dl) { try { await dl.save({filename: fname, data: txt}); return toast('Relatório salvo'); } catch (e) { if (e && e.code === 'declined') return; } } }
+    if (d.m === 'save') { let dl = null; try { dl = window.claude && claude.use ? await claude.use('downloads') : null; } catch (e) {} if (!dl) { const r = await shareFile(fname, txt, fmt === 'csv' ? 'text/csv' : 'text/markdown'); if (r !== 'cancel') toast('Relatório pronto'); return; } if (dl) { try { await dl.save({filename: fname, data: withBom(txt, 'text/plain')}); return toast('Relatório salvo'); } catch (e) { if (e && e.code === 'declined') return; } } }
     $('#ex_out').innerHTML = `<textarea id="ex_txt" readonly style="min-height:160px;margin-top:10px" aria-label="Relatório">${esc(txt)}</textarea>`;
     const t = $('#ex_txt'); t.select(); try { await navigator.clipboard.writeText(txt); toast('Relatório copiado'); } catch (e) { toast('Selecionado: copie manualmente'); }
   },
@@ -2327,7 +2337,7 @@ const CH = {
   setrir(el) { S.settings.defaultRir = +el.value; persist(); },
   setsel(el) { S.settings[el.dataset.k] = el.value; persist(); },
   expPer(el) { const r = $('#ex_rng'); if (r) r.hidden = el.value !== 'range'; },
-  impFile(el) { const f = el.files && el.files[0]; if (!f) return; const fr = new FileReader(); fr.onload = () => { try { importObj(JSON.parse(fr.result)); toast('Backup restaurado'); } catch (e) { toast('Arquivo de backup inválido'); } }; fr.readAsText(f); el.value = ''; },
+  impFile(el) { const f = el.files && el.files[0]; if (!f) return; const fr = new FileReader(); fr.onload = () => { try { importObj(JSON.parse(String(fr.result).replace(/^\uFEFF/, ''))); toast('Backup restaurado'); } catch (e) { toast('Arquivo de backup inválido'); } }; fr.readAsText(f); el.value = ''; },
   evoSel(el) { view.evo = el.value; render(); },
   exPeriod(el) { view.period = el.value; render(); },
   profnum(el) { S.profile[el.dataset.k] = el.value.trim() === '' ? null : Math.max(0, Math.round(num(el.value))); persist(); refreshBody(); },
@@ -2434,7 +2444,7 @@ if (!inClaude() && navigator.storage && navigator.storage.persist) navigator.sto
 </script>
 
 <script>
-if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202610241428').catch(() => {});
+if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202610242040').catch(() => {});
 </script>
 </body>
 </html>
