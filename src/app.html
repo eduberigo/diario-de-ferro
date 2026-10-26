@@ -666,8 +666,35 @@ async function syncNow(force) {
   if (['home', 'settings'].includes(view.n)) render();
 }
 function queueBackup() { pend.backup = {name: 'diario-de-ferro-backup-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.json', at: Date.now(), msg: ''}; savePend(); }
+/* Drive no app Android: login do Google pelo sistema (escopo drive.file) e envio direto pela API do Drive */
+const natDrive = () => !!natP('FerroDrive');
+async function gTok(interactive) { const r = await natP('FerroDrive').authorize({interactive}); return r.accessToken; }
+async function gApi(path, opt = {}, interactive = false) {
+  const tok = await gTok(interactive);
+  const res = await fetch('https://www.googleapis.com' + path, Object.assign({}, opt, {headers: Object.assign({Authorization: 'Bearer ' + tok}, opt.headers || {})}));
+  if (!res.ok) { const t = await res.text().catch(() => ''); const e = new Error('drive ' + res.status + ' ' + t.slice(0, 200)); e.status = res.status; throw e; }
+  return res;
+}
+async function gdList() { const q = encodeURIComponent("name contains 'diario-de-ferro-backup' and trashed = false"); const r = await gApi(`/drive/v3/files?q=${q}&orderBy=modifiedTime desc&pageSize=20&fields=files(id,name,modifiedTime,size)`); return (await r.json()).files || []; }
+async function gdCreate(name, text, interactive) {
+  const bnd = 'ferro' + Date.now(), body = `--${bnd}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({name, mimeType: 'application/json'})}\r\n--${bnd}\r\nContent-Type: application/json\r\n\r\n${text}\r\n--${bnd}--`;
+  await gApi('/upload/drive/v3/files?uploadType=multipart&fields=id', {method: 'POST', headers: {'Content-Type': 'multipart/related; boundary=' + bnd}, body}, interactive);
+}
+async function gdGet(id) { const r = await gApi(`/drive/v3/files/${encodeURIComponent(id)}?alt=media`); return r.text(); }
+const gErrMsg = e => e && (e.code === 'CANCELED' || /cancel/i.test(e.message || '')) ? 'Autorização cancelada.' : e && (e.code === 'NEEDS_CONSENT') ? 'Toque em "Salvar no Drive" para autorizar o Google Drive uma vez.' : (e && e.status === 403) ? 'O Google recusou o acesso. Confira se a API do Drive está ativada no projeto do Google Cloud.' : (e && /AUTH|10:|DEVELOPER_ERROR/i.test(String(e.message || e.code))) ? 'O app ainda não está liberado no Google Cloud (cliente Android com o pacote e a impressão SHA-1).' : 'Sem conexão com o Drive agora: o backup fica guardado e sai sozinho quando a rede voltar.';
 async function runBackup(user) {
   const b = pend.backup; if (!b) return true;
+  if (natDrive()) {
+    try {
+      const have = await gdList().catch(err => { if (user) throw err; return []; });
+      if (!have.some(f => f.name === b.name)) await gdCreate(b.name, JSON.stringify(backupObj()), !!user);
+      pend.backup = null; S.settings.lastDrive = new Date().toISOString(); savePend(); persist();
+      toast('Backup salvo no Drive'); return true;
+    } catch (e) {
+      if (!user && e && e.code === 'NEEDS_CONSENT') { b.msg = 'Falta autorizar o Google Drive: toque em Tentar agora.'; savePend(); return false; }
+      try { await gdCreate(b.name, JSON.stringify(backupObj()), !!user); pend.backup = null; S.settings.lastDrive = new Date().toISOString(); savePend(); persist(); toast('Backup salvo no Drive'); return true; } catch (e2) { b.msg = gErrMsg(e2); savePend(); if (user) toast(b.msg); return false; }
+    }
+  }
   const m = await mcpNs();
   if (!m) { b.msg = 'O backup sai quando o app estiver aberto dentro do claude.ai.'; savePend(); return false; }
   const to = () => (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(25000) : undefined;
@@ -1071,9 +1098,13 @@ function navHtml() {
   const t = (n, l, i) => `<button data-act="tab" data-n="${n}" class="${on(n) ? 'on' : ''}">${ic(i)}<span>${l}</span></button>`;
   return `<nav class="nav"><div>${t('home', 'Treinos', 'dumb')}${t('history', 'Histórico', 'cal')}${t('muscles', 'Músculos', 'fire')}${t('body', 'Corpo', 'body')}${t('settings', 'Ajustes', 'gear')}</div></nav>`;
 }
+function routinesOrdered() {
+  S.routines.forEach((r, i) => { if (!r.touched) r.touched = 1 + i; });   // antigas: a criada por último ganha o maior número
+  return S.routines.slice().sort((a, b) => b.touched - a.touched);
+}
 function homeView() {
   const banner = run && run.phase !== 'done' ? `<button class="card wrow" data-act="resume" style="margin-top:12px;border-color:var(--accent)"><span class="badge" style="background:var(--accent);color:var(--on-accent)">${ic('play')}</span><span class="t"><b>Treino em andamento</b><span class="muted small">${esc(run.name)} · toque para voltar</span></span></button>` : '';
-  const rs = S.routines.map(r => {
+  const rs = routinesOrdered().map(r => {
     const gt = groupTotals(r.workouts.flatMap(w => w.exercises));
     const head = `<div class="rhead"><button class="rtog" data-act="rCol" data-id="${r.id}" aria-expanded="${!r.collapsed}"><h2>${esc(r.name)}<span class="muted small" style="display:block;font:500 13px var(--body)">${r.collapsed ? `${r.workouts.length} treino${r.workouts.length === 1 ? '' : 's'} · toque para abrir` : `Padrão: ${rdef(r).sets} séries · ${rdef(r).repsMin}–${rdef(r).repsMax} reps · ${rdef(r).rest} s de descanso`}</span></h2>${ic(r.collapsed ? 'down' : 'up')}</button><button class="ib" data-act="routineMenu" data-id="${r.id}" aria-label="Opções da rotina">${ic('more')}</button></div>`;
     if (r.collapsed) return `<section class="routine collapsed">${head}</section>`;
@@ -1194,8 +1225,8 @@ function settingsView() {
   ${tg('autoBackup', 'Backup automático no Drive', 'Ao terminar cada treino, faz o backup sem perguntar. Sem rede, espera e tenta de novo sozinho.')}
   ${tg('smart', 'Sugestão inteligente', 'Preenche reps e carga com o que você fez da última vez no exercício.')}</div>
   <p class="muted small">Peso, gordura e medidas ficam na aba Corpo e entram no cálculo de calorias.</p>
-  <div class="sec"><h2>Dados</h2><div class="card"><div class="set"><div class="t"><b>Sincronização</b><span class="muted small">${esc(cloudMsg)}${pend.sess.length ? ` · ${pend.sess.length} treino(s) esperando rede` : ''}${pend.backup ? ' · backup pendente' : ''}${S.settings.lastDrive ? ` · último backup no Drive: ${new Date(S.settings.lastDrive).toLocaleString('pt-BR')}` : ''}</span></div><button class="btn sm" data-act="syncForce">Sincronizar agora</button></div></div>
-  ${inClaude() ? '' : '<p class="muted small">Versão instalada no celular: os dados ficam salvos no aparelho, sem internet. Para backup, use "Baixar arquivo" e mande o arquivo para você no WhatsApp ou para o Drive.</p>'}<div class="card" style="margin-top:12px${inClaude() ? '' : ';display:none'}"><div class="set" style="align-items:center"><div class="t"><b>Google Drive</b><span class="muted small">Salva uma cópia completa (rotinas, histórico, corpo, ajustes) na sua conta do Drive.</span></div></div>
+  <div class="sec"><h2>Dados</h2><div class="card"><div class="set"><div class="t"><b>Sincronização</b><span class="muted small">${esc(natDrive() ? (S.settings.lastDrive ? 'Backup automático no Google Drive' : 'Google Drive ainda não usado') : cloudMsg)}${pend.sess.length ? ` · ${pend.sess.length} treino(s) esperando rede` : ''}${pend.backup ? ' · backup pendente' : ''}${S.settings.lastDrive ? ` · último backup no Drive: ${new Date(S.settings.lastDrive).toLocaleString('pt-BR')}` : ''}</span></div><button class="btn sm" data-act="syncForce">Sincronizar agora</button></div></div>
+  ${inClaude() ? '' : natDrive() ? '<p class="muted small">Os dados ficam salvos no aparelho, sem internet. O backup vai para uma pasta do app no seu Google Drive; sem rede, ele espera e sai sozinho quando a conexão voltar.</p>' : '<p class="muted small">Versão instalada no celular: os dados ficam salvos no aparelho, sem internet. Para backup, use "Baixar arquivo" e mande o arquivo para você no WhatsApp ou para o Drive.</p>'}<div class="card" style="margin-top:12px${inClaude() || natDrive() ? '' : ';display:none'}"><div class="set" style="align-items:center"><div class="t"><b>Google Drive</b><span class="muted small">Salva uma cópia completa (rotinas, histórico, corpo, ajustes) na sua conta do Drive.</span></div></div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;padding:0 14px 14px"><button class="btn sm primary" data-act="driveSave">Salvar no Drive</button><button class="btn sm" data-act="driveList">Restaurar do Drive</button></div></div>
   <div class="card" style="margin-top:10px"><div class="set"><div class="t"><b>Arquivo no aparelho</b><span class="muted small">Baixa um arquivo .json que você pode guardar onde quiser.</span></div></div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;padding:0 14px 14px"><button class="btn sm" data-act="fileSave">${inClaude() ? 'Baixar arquivo' : 'Baixar / compartilhar arquivo'}</button><label class="btn sm" for="impfile" style="cursor:pointer">Restaurar arquivo</label><input type="file" id="impfile" accept="application/json,.json" hidden data-act-change="impFile"></div></div>
@@ -2009,7 +2040,7 @@ function saveRun() {
   const did = run.exs.some(e => e.sets.some(vset)), fw = findW(run.workoutId);
   if (did && fw && fw.r.workouts.length > 1) { const i = fw.r.workouts.indexOf(fw.w); fw.r.workouts.splice(i, 1); fw.r.workouts.push(fw.w); persist(); }
   run = null; persistRun(); stack = []; view = {n: 'history'}; render(); toast('Treino salvo');
-  if (!inClaude()) { modal(`<h2>Fazer backup agora?</h2><p class="muted" style="margin:0">Gera um arquivo com tudo (rotinas, histórico, corpo). Você pode mandar para você mesmo no WhatsApp ou salvar no Drive quando tiver sinal.</p><div style="display:flex;gap:10px"><button class="btn" style="flex:1" data-act="closeModal">Agora não</button><button class="btn primary" style="flex:1" data-act="fileSave">Compartilhar backup</button></div>`); return; }
+  if (!inClaude() && !natDrive()) { modal(`<h2>Fazer backup agora?</h2><p class="muted" style="margin:0">Gera um arquivo com tudo (rotinas, histórico, corpo). Você pode mandar para você mesmo no WhatsApp ou salvar no Drive quando tiver sinal.</p><div style="display:flex;gap:10px"><button class="btn" style="flex:1" data-act="closeModal">Agora não</button><button class="btn primary" style="flex:1" data-act="fileSave">Compartilhar backup</button></div>`); return; }
   if (S.settings.autoBackup) { queueBackup(); syncNow(true); }
   else modal(`<h2>Fazer backup agora?</h2><p class="muted" style="margin:0">Salva uma cópia completa no Google Drive. Sem rede, fica guardado e sai sozinho quando a conexão voltar, com o app aberto.</p><label class="chkrow"><input type="checkbox" id="bk_always"> Sempre fazer ao terminar, sem perguntar</label><div style="display:flex;gap:10px"><button class="btn" style="flex:1" data-act="bkSkip">Agora não</button><button class="btn primary" style="flex:1" data-act="bkGo">Fazer backup</button></div>`);
 }
@@ -2208,7 +2239,7 @@ const H = {
   tab: d => tab(d.n), back: () => back(), closeModal, scrim: (d, el, e) => { if (e.target === el) closeModal(); },
   openW: d => { closeModal(); go({n: 'workout', id: d.id}); },
   newRoutine: () => promptBox('Nome da rotina', 'Rotina ' + (S.routines.length + 1), 'doNewRoutine'),
-  doNewRoutine: () => { const n = val('pv').trim(); if (!n) return; const r = {id: uid(), name: n, workouts: [], defaults: {sets: 4, repsMin: 8, repsMax: 12, rest: 60}}; S.routines.forEach(x => x.collapsed = true); S.routines.unshift(r); persist(); closeModal(); render(); rdModal(r); },
+  doNewRoutine: () => { const n = val('pv').trim(); if (!n) return; const r = {id: uid(), name: n, workouts: [], defaults: {sets: 4, repsMin: 8, repsMax: 12, rest: 60}}; S.routines.forEach(x => x.collapsed = true); r.touched = Date.now(); S.routines.unshift(r); persist(); closeModal(); render(); rdModal(r); },
   routineMenu: d => menu(S.routines.find(r => r.id === d.id).name, [{t: 'Exportar rotina em texto (.txt)', act: 'txtR', d: {id: d.id}}, {t: 'Padrão dos exercícios (séries, reps, descanso)', act: 'rdOpen', d: {id: d.id}}, {t: 'Renomear', act: 'renRoutine', d: {id: d.id}}, {t: 'Excluir rotina', act: 'delRoutineAsk', d: {id: d.id}, danger: 1}]),
   renRoutine: d => promptBox('Nome da rotina', S.routines.find(r => r.id === d.id).name, 'doRenRoutine', {id: d.id}),
   doRenRoutine: d => { const n = val('pv').trim(); if (!n) return; S.routines.find(r => r.id === d.id).name = n; persist(); closeModal(); render(); },
@@ -2413,7 +2444,7 @@ const H = {
   rdOpen: d => rdModal(S.routines.find(r => r.id === d.id)),
   saveRD: d => { const r = S.routines.find(x => x.id === d.id); if (!r) return closeModal(); const sets = Math.max(1, Math.round(num(val('rd_sets')) || 1)), rmin = Math.max(1, Math.round(num(val('rd_rmin')) || 1)); r.defaults = {sets, repsMin: rmin, repsMax: Math.max(rmin, Math.round(num(val('rd_rmax')) || rmin)), rest: Math.max(0, Math.round(num(val('rd_rest')))), rir: readRirP('rd', sets), tempo: readTempo('rd')}; persist(); closeModal(); render(); toast('Padrão salvo'); },
   driveSave: async (d, el) => {
-    const m = await mcpNs(); if (!m) return toast('O Google Drive só funciona com o app aberto dentro do claude.ai.');
+    const m = natDrive() ? true : await mcpNs(); if (!m) return toast('O Google Drive só funciona no app Android ou dentro do claude.ai.');
     el.disabled = true; el.textContent = 'Salvando…';
     try {
       queueBackup(); await runBackup(true); render();
@@ -2421,7 +2452,15 @@ const H = {
     el.disabled = false; el.textContent = 'Salvar no Drive';
   },
   driveList: async (d, el) => {
-    const m = await mcpNs(); if (!m) return toast('O Google Drive só funciona com o app aberto dentro do claude.ai.');
+    if (natDrive()) {
+      el.disabled = true; el.textContent = 'Buscando…';
+      try {
+        await gTok(true); const files = await gdList();
+        modal(`<h2>Restaurar do Drive</h2>${files.length ? `<p class="muted small" style="margin:0">Restaurar substitui rotinas, corpo e ajustes, e soma o histórico.</p><div>${files.map(f => `<button class="mi" data-act="driveGet" data-id="${esc(f.id)}"><span style="flex:1">${esc(f.name)}<br><span class="muted small">${f.modifiedTime ? new Date(f.modifiedTime).toLocaleString('pt-BR') : ''}</span></span></button>`).join('')}</div>` : '<p class="muted" style="margin:0">Nenhum backup deste app no seu Drive ainda.</p>'}<button class="btn block" data-act="closeModal">Fechar</button>`);
+      } catch (e) { modal(`<h2>Restaurar do Drive</h2><p style="margin:0">${esc(gErrMsg(e))}</p><button class="btn block" data-act="closeModal">Fechar</button>`); }
+      el.disabled = false; el.textContent = 'Restaurar do Drive'; return;
+    }
+    const m = await mcpNs(); if (!m) return toast('O Google Drive só funciona no app Android ou dentro do claude.ai.');
     el.disabled = true; el.textContent = 'Buscando…';
     try {
       const r = await m.callTool('Google Drive', 'search_files', {query: "title contains 'diario-de-ferro-backup'", pageSize: 10, excludeContentSnippets: true}, {cache: false});
@@ -2431,6 +2470,7 @@ const H = {
     el.disabled = false; el.textContent = 'Restaurar do Drive';
   },
   driveGet: async (d, el) => {
+    if (natDrive()) { el.disabled = true; try { importObj(JSON.parse((await gdGet(d.id)).replace(/^\uFEFF/, ''))); closeModal(); toast('Backup restaurado'); } catch (e) { toast(gErrMsg(e)); } el.disabled = false; return; }
     const m = await mcpNs(); if (!m) return;
     el.disabled = true;
     try {
@@ -2464,7 +2504,7 @@ const H = {
   bkGo: () => { if (document.getElementById('bk_always') && document.getElementById('bk_always').checked) { S.settings.autoBackup = true; persist(); } closeModal(); queueBackup(); render(); runBackup(true).then(() => render()); },
   bkSkip: () => { if (document.getElementById('bk_always') && document.getElementById('bk_always').checked) { S.settings.autoBackup = true; persist(); } closeModal(); },
   bkNow: () => { runBackup(true).then(() => render()); },
-  syncForce: () => { toast('Tentando sincronizar…'); syncNow(true); },
+  syncForce: () => { if (natDrive()) { queueBackup(); toast('Enviando backup para o Drive…'); runBackup(true).then(() => render()); return; } toast('Tentando sincronizar…'); syncNow(true); },
   bkCancel: () => { pend.backup = null; savePend(); render(); },
   simAllTog: () => { simAll = !simAll; renderSimilar(); },
   subW: d => { closeModal(); const f = findW(view.id), i = +d.i, old = f.w.exercises[i]; similarPick(old.exId, id => { const pp = pickPreset; pickPreset = {}; const l = getEx(id), n = Object.assign({}, old, {id: uid(), exId: id, variant: pp.variant || '', grip: pp.grip || ''}); if (l.type === 'time' && !n.secs) n.secs = 30; f.w.exercises[i] = n; if (l.primary.some(m => !(f.w.groups || []).includes(m))) f.w.groups = [...new Set((f.w.groups || []).concat(l.primary))]; persist(); render(); toast('Exercício substituído'); }, old.grip, old.variant); },

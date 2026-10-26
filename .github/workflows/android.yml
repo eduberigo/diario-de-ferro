@@ -36,13 +36,14 @@ jobs:
         working-directory: android-app/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          ./gradlew assembleRelease bundleRelease --no-daemon --stacktrace
       - name: Publicar APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp android-app/android/app/build/outputs/apk/release/app-release.apk diario-de-ferro.apk
+          cp android-app/android/app/build/outputs/bundle/release/app-release.aab diario-de-ferro.aab
           gh release delete android-latest --yes --cleanup-tag || true
-          gh release create android-latest diario-de-ferro.apk \
+          gh release create android-latest diario-de-ferro.apk diario-de-ferro.aab \
             --title "App Android — versão ${GITHUB_RUN_NUMBER}" \
             --notes "Compilado de ${GITHUB_SHA::7} em $(date -u '+%d/%m/%Y %H:%M') UTC. Baixe o arquivo diario-de-ferro.apk e instale por cima da versão anterior."
