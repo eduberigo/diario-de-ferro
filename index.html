@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12161b">
-<script>window.FERRO_BUILD = '202610242040';</script>
+<script>window.FERRO_BUILD = '202610260451';</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -82,6 +82,16 @@ h2{font-size:22px}
 .chip{display:inline-block;border:1.5px solid var(--accent);color:var(--accent);border-radius:999px;padding:0 10px;font-size:13px;margin:2px 0}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .tgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.ldone{display:inline-flex;align-items:center;gap:6px;margin:5px 0 3px;padding:3px 10px 3px 8px;border-radius:999px;background:var(--surface2);font:500 14px var(--body);color:var(--fg)}.ldone b{font-weight:700}.ldone span{color:var(--muted)}.ldone svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2}.ldone.recent{background:color-mix(in srgb,var(--warmup) 22%,transparent)}.ldone.old{background:color-mix(in srgb,var(--prepare) 22%,transparent)}.ldone.never{color:var(--muted);font-size:13px}
+.rtog{flex:1;display:flex;align-items:center;gap:8px;text-align:left;color:var(--fg);min-width:0}.rtog h2{flex:1;min-width:0}.rtog svg{width:20px;height:20px;fill:none;stroke:var(--muted);stroke-width:2;flex:none}.routine.collapsed{opacity:.92}
+.pectl{display:grid;grid-template-columns:1fr auto;gap:6px;margin:10px 0 4px}.pectl select:first-child{grid-column:1/-1}.pectl select{min-width:0;padding-left:8px;padding-right:4px}
+.perow{display:grid;grid-template-columns:24px .8fr 1fr 1.1fr 60px 26px;gap:6px;align-items:center;margin-top:6px}.perow input{padding:8px 6px;text-align:center;min-width:0}
+.pfil{display:flex;gap:8px;align-items:center;margin:8px 0 2px}.pfil select{flex:1;min-width:0}.mchip.on{background:var(--accent);color:var(--on-accent)}
+.minirun{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(70px + env(safe-area-inset-bottom,0px));z-index:6;width:calc(100% - 20px);max-width:540px;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:16px;background:var(--surface);border:1.5px solid var(--ph);box-shadow:var(--shadow);text-align:left;color:var(--fg)}
+.minirun .dot{width:10px;height:10px;border-radius:50%;background:var(--ph);flex:none}
+.minirun .mt{flex:1;min-width:0;display:flex;flex-direction:column}.minirun .mt span{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.minirun>b.num{font:700 26px var(--display);color:var(--ph)}
+.minirun.isrest{background:color-mix(in srgb,var(--rest) 14%,var(--surface))}
+body.hasmini .fab{bottom:calc(150px + env(safe-area-inset-bottom,0px))}body.hasmini .wrap{padding-bottom:80px}
 .tempobar{display:flex;width:100%;align-items:center;gap:6px;margin:-4px 0 10px;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;font-size:14px;color:var(--fg);text-align:left}
 .tps{display:grid;grid-template-columns:62px repeat(4,1fr);gap:6px;align-items:center;margin-top:8px}.tps select{width:100%;min-width:0;padding-left:6px;padding-right:2px}
 .qv{display:inline-flex;align-items:baseline;gap:4px;border-radius:12px;padding:6px 10px;background:var(--surface2);cursor:pointer}.qv:active{outline:2px solid var(--accent)}
@@ -147,6 +157,8 @@ body::before{content:'';position:fixed;left:0;right:0;top:0;height:max(env(safe-
 .sheet .bar{position:absolute;left:0;top:0;height:5px;background:var(--ph,var(--accent));transition:width .25s linear}
 .ph{text-align:center;min-height:104px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px}
 .ph .big{font:700 60px/1 var(--display)}
+.sheet .p-rest .big{color:var(--rest)}.sheet>div:has(> .p-rest){background:color-mix(in srgb,var(--rest) 15%,var(--surface));border-color:var(--rest)}
+.rirpick{display:flex;align-items:center;gap:6px;justify-content:center;flex-wrap:wrap;margin:2px 0 10px}.rirpick span{font:500 13px var(--body);color:var(--muted)}.rirpick button{min-width:38px;padding:6px 8px;border-radius:999px;border:1.5px solid var(--line);font:600 14px var(--body);color:var(--fg)}.rirpick button.on{background:var(--rest);border-color:var(--rest);color:#fff}
 .ph .cap{font-weight:600;color:var(--muted);display:flex;gap:8px;align-items:center}
 .ph .tt{font:700 34px/1.05 var(--display)}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--ph);display:inline-block}
@@ -260,7 +272,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .thumbs img{width:44px;height:44px;object-fit:cover;border-radius:8px}
 .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
 .photos img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;background:var(--surface2)}
-.serow{display:grid;grid-template-columns:26px 1fr 1fr 60px 62px 34px;gap:6px;align-items:center;margin-top:6px}
+.serow{display:grid;grid-template-columns:24px 1fr 1fr 1fr 52px 58px 28px;gap:6px;align-items:center;margin-top:6px}
 .serow input,.serow select{padding:8px 6px;text-align:center}
 .hset{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
 .hset:last-child{border-bottom:0}
@@ -824,8 +836,62 @@ function applyTheme() {
   const sb = typeof natP === 'function' && natP('SystemBars'); if (sb && sb.setStyle) try { sb.setStyle({style: dark ? 'DARK' : 'LIGHT'}); } catch (e) {}
 }
 try { window.matchMedia && matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyTheme()); } catch (e) {}
+/* ---------- cálculo de cargas ---------- */
+const ISO_PAT = new Set(['fly', 'lateral', 'front', 'reardelt', 'curl', 'tri', 'legext', 'legcurl', 'calf', 'abduct', 'adduct', 'forearm', 'shrug', 'pullover', 'rotator', 'glute']);
+// força relativa por tipo de equipamento (halter = por mão; polia = por lado). Valores aproximados, só para estimar.
+const eqf = l => { const e = ((l && l.eq) || [])[0] || ''; return ({barra: 1, 'barra-ez': .85, smith: .9, halteres: .42, crossover: .4, 'polia-alta': .75, 'polia-baixa': .7})[e] ?? (e ? .9 : 0); };
+const e1rm = (kg, reps) => kg * (1 + reps / 30);   // Epley
+const loadFor = (e1, reps, rir) => e1 / (1 + (reps + rir) / 30);
+const kgStep = l => ((l && l.eq) || [])[0] === 'halteres' ? 2 : 2.5;
+const rndK = (kg, l) => { const st = kgStep(l); return Math.max(0, Math.round(kg / st) * st); };
+function bestE1(exId, vk) {
+  for (const s of sessions) {
+    const f = (s.exercises || []).find(x => x.exId === exId && (vk == null || vkey(x) === vk) && x.sets.some(z => vset(z) && z.reps > 0 && z.kg > 0));
+    if (f) return {e1: Math.max(...f.sets.filter(z => vset(z) && z.reps > 0 && z.kg > 0).map(z => e1rm(z.kg, Math.min(z.reps, 15)))), date: s.date};
+  }
+  return null;
+}
+function estE1(cfg) {
+  const l = getEx(cfg.exId), own = bestE1(cfg.exId, vkey(cfg)) || bestE1(cfg.exId, null);
+  if (own) return Object.assign(own, {how: 'histórico deste exercício'});
+  if (cfg.kgMin > 0) return {e1: e1rm(cfg.kgMin, cfg.repsMax || 10), how: 'carga cadastrada no exercício'};
+  if (!eqf(l)) return null;
+  const pat = PAT[cfg.exId], seen = new Set(), cands = [];
+  for (const s of sessions) for (const x of (s.exercises || [])) {
+    if (seen.has(x.exId) || x.exId === cfg.exId) continue; seen.add(x.exId);
+    const sl = getEx(x.exId); if (!sl || sl.type === 'time' || !eqf(sl)) continue;
+    const sp = PAT[x.exId], same = pat && sp === pat, grp = sl.primary[0] === l.primary[0];
+    if (!same && !grp) continue;
+    const b = bestE1(x.exId, null); if (!b) continue;
+    const k = same ? 1 : (ISO_PAT.has(pat) && !ISO_PAT.has(sp)) ? .45 : (!ISO_PAT.has(pat) && ISO_PAT.has(sp)) ? 1.8 : .85;
+    cands.push({same, e1: b.e1 * k * eqf(l) / eqf(sl), how: 'estimado a partir de ' + sl.name});
+  }
+  cands.sort((a, b) => b.same - a.same);
+  return cands[0] || null;
+}
+const TECH = [['normal', 'Normal'], ['gironda', 'Gironda 8×8'], ['fst7', 'FST-7 (7 séries)'], ['strip', 'Strip set no último'], ['rp', 'Rest-pause no último']];
+const WARM_PCT = {1: [[.6, 8]], 2: [[.5, 10], [.75, 5]], 3: [[.4, 12], [.6, 8], [.8, 4]]};
+function calcRows(cfg, tech, warmN, e1) {
+  const l = getEx(cfg.exId), r = cfg.repsMax || 10, rirs = cfg.rir || [];
+  const nWork = cfg.plan ? Math.max(1, cfg.plan.filter(p => !p.warm && !p.kind).length) : cfg.sets;
+  let work = [];
+  if (tech === 'gironda') for (let k = 0; k < 8; k++) work.push({reps: 8, kg: rndK(e1 * .6, l)});
+  else if (tech === 'fst7') for (let k = 0; k < 7; k++) work.push({reps: 10, kg: rndK(loadFor(e1, 10, 2) * .92, l)});
+  else for (let k = 0; k < nWork; k++) work.push({reps: r, kg: rndK(loadFor(e1, r, rirs[Math.min(k, rirs.length - 1)] ?? S.settings.defaultRir), l)});
+  const ref = work[0] ? work[0].kg : 0, top = work.length ? work[work.length - 1].kg : 0;
+  const warm = (WARM_PCT[warmN] || []).map(([p, rp]) => ({reps: Math.min(rp, Math.max(r, 4) + 4), kg: rndK(ref * p, l), warm: true}));
+  const tail = [];
+  if (tech === 'strip') for (let k = 1; k <= 3; k++) { const kg = rndK(top * (1 - .25 * k), l); if (kg > 0) tail.push({reps: r, kg, kind: 'drop', kn: k}); }
+  if (tech === 'rp') for (let k = 1; k <= 3; k++) tail.push({reps: Math.max(2, Math.round(r / 3)), kg: top, kind: 'rp', kn: k});
+  return warm.concat(work, tail);
+}
+function rowsFromLast(cfg) {
+  for (const s of sessions) { const f = (s.exercises || []).find(x => x.exId === cfg.exId && vkey(x) === vkey(cfg) && x.sets.some(z => z.done)); if (f) return {rows: f.sets.filter(z => z.done && z.reps != null).map(z => ({reps: z.reps, kg: z.kg || 0, warm: !!z.warm, kind: z.kind || '', kn: 0})), date: s.date}; }
+  return null;
+}
 function prepOf(e) { const v = e ? (e.prep ?? (e.cfg && e.cfg.prep)) : null; return (v != null && v !== '') ? Math.max(0, +v) : (S.settings.prep ? +S.settings.prepSec || 0 : 0); }
-const prepPh = () => prepOf(curEx()) > 0 ? 'prepare' : 'exec';
+const curPrep = () => (run && run.prepOv != null) ? run.prepOv : prepOf(curEx());
+const prepPh = () => curPrep() > 0 ? 'prepare' : 'exec';
 const TEMPO_PRE = [['2-0-2-0', 'Controlada'], ['3-0-1-0', 'Hipertrofia'], ['4-0-1-0', 'Excêntrica lenta'], ['3-1-1-0', 'Pausa no alongamento'], ['2-0-1-2', 'Pico de contração'], ['2-0-X-0', 'Explosiva']];
 function tParse(t) { const a = String(t || '').split('-'); if (a.length !== 4) return null; return a.map(x => String(x).toUpperCase() === 'X' ? 'X' : Math.max(0, Math.min(10, Math.round(+x) || 0))); }
 const tSec = t => (tParse(t) || [2, 0, 2, 0]).reduce((a, x) => a + (x === 'X' ? 1 : x), 0);
@@ -859,8 +925,15 @@ function est(w) {
   const st = S.settings, r = rate(), chg = +st.exChange || 0;
   let exec = 0, prep = 0, rest = 0, load = 0;
   w.exercises.forEach((e, i) => {
-    const lib = getEx(e.exId), n = e.sets, rs = e.rest ?? st.defaultRest;
+    const lib = getEx(e.exId), rs = e.rest ?? st.defaultRest;
     const t0 = tempoOf(e, w);
+    if (lib.type !== 'time' && e.plan && e.plan.length) {
+      const pl = e.plan, kinds = pl.filter(p => p.kind).length;
+      pl.forEach(p => { exec += (p.reps || 0) * tSec(t0); prep += p.kind === 'rp' ? 10 : prepOf(e); if (!p.warm) load += (p.reps || 0) * (p.kg || 0); });
+      rest += Math.max(0, pl.length - 1 - kinds) * rs + (i < w.exercises.length - 1 ? chg : 0);
+      return;
+    }
+    const n = e.sets;
     for (let k = 0; k < n; k++) exec += lib.type === 'time' ? e.secs : avg(e.repsMin, e.repsMax) * tSec((e.tempoSets && e.tempoSets[k]) || t0);
     prep += n * prepOf(e);
     rest += Math.max(0, n - 1) * rs + (i < w.exercises.length - 1 ? chg : 0);
@@ -1015,7 +1088,9 @@ function homeView() {
   const banner = run && run.phase !== 'done' ? `<button class="card wrow" data-act="resume" style="margin-top:12px;border-color:var(--accent)"><span class="badge" style="background:var(--accent);color:var(--on-accent)">${ic('play')}</span><span class="t"><b>Treino em andamento</b><span class="muted small">${esc(run.name)} · toque para voltar</span></span></button>` : '';
   const rs = S.routines.map(r => {
     const gt = groupTotals(r.workouts.flatMap(w => w.exercises));
-    return `<section class="routine"><div class="rhead"><h2>${esc(r.name)}<span class="muted small" style="display:block;font:500 13px var(--body)">Padrão: ${rdef(r).sets} séries · ${rdef(r).repsMin}–${rdef(r).repsMax} reps · ${rdef(r).rest} s de descanso</span></h2><button class="ib" data-act="routineMenu" data-id="${r.id}" aria-label="Opções da rotina">${ic('more')}</button></div>
+    const head = `<div class="rhead"><button class="rtog" data-act="rCol" data-id="${r.id}" aria-expanded="${!r.collapsed}"><h2>${esc(r.name)}<span class="muted small" style="display:block;font:500 13px var(--body)">${r.collapsed ? `${r.workouts.length} treino${r.workouts.length === 1 ? '' : 's'} · toque para abrir` : `Padrão: ${rdef(r).sets} séries · ${rdef(r).repsMin}–${rdef(r).repsMax} reps · ${rdef(r).rest} s de descanso`}</span></h2>${ic(r.collapsed ? 'down' : 'up')}</button><button class="ib" data-act="routineMenu" data-id="${r.id}" aria-label="Opções da rotina">${ic('more')}</button></div>`;
+    if (r.collapsed) return `<section class="routine collapsed">${head}</section>`;
+    return `<section class="routine">${head}
     <div class="card">${r.workouts.map((w, i) => { const e = est(w); return `<div class="swrap"><div class="sacts"><button class="sa1" data-act="swDup" data-id="${w.id}">Duplicar</button><button class="sa2" data-act="swRen" data-id="${w.id}">Renomear</button><button class="sa3" data-act="swDel" data-id="${w.id}">Excluir</button></div><button class="wrow sw" data-act="openW" data-id="${w.id}" data-swipe="1" data-drag="rw" data-r="${r.id}" data-i="${i}"><span class="badge">${esc((w.name.match(/[A-Za-z0-9]$/) || [w.name[0]])[0].toUpperCase())}</span><span class="t"><b>${esc(w.name)}</b><span class="muted small num">${w.exercises.length} exercícios · ~${e.min} min · ${e.kcal} kcal</span>${(() => { const ld = lastDone(w, r); return ld ? `<span class="ldone ${ld.cls}">${ic('cal')}<b>${ld.rel}</b><span>${ld.day}</span></span>` : '<span class="ldone never">Ainda não feito</span>'; })()}${(w.groups || []).length ? `<span class="small" style="display:block;color:var(--accent)">${esc(w.groups.join(' · '))}</span>` : ''}</span></button><button class="ib rmore" data-act="wRowMenu" data-id="${w.id}" aria-label="Opções do treino">${ic('more')}</button></div>`; }).join('') || '<div class="empty">Nenhum treino nesta rotina.</div>'}</div>
     ${r.workouts.length > 1 ? '<p class="muted small" style="margin:6px 0 0">Deslize um treino para a esquerda para duplicar, renomear ou excluir. Toque e segure para mudar a ordem.</p>' : ''}
     <div style="margin-top:10px"><button class="btn sm" data-act="newWorkout" data-id="${r.id}">${ic('plus')} Treino</button></div>
@@ -1034,7 +1109,7 @@ function workoutView() {
   <div class="chips" style="margin:-2px 0 12px;align-items:center">${(w.groups || []).map(g => `<span class="mchip">${g}</span>`).join('') || '<span class="muted small">Nenhum grupo muscular definido</span>'}<button class="mchip" data-act="editWG" style="color:var(--accent)">Editar grupos</button></div>
   <button class="muted small" data-act="wdOpen" style="display:block;margin:-4px 0 12px;text-align:left">Padrão${f.w.defaults ? ' do treino' : ' da rotina'}: ${wdef(f.r, f.w).sets} séries · ${wdef(f.r, f.w).repsMin}–${wdef(f.r, f.w).repsMax} reps · ${wdef(f.r, f.w).rest} s de descanso · cadência ${tempoOf({}, f.w)} <span style="color:var(--accent)">· alterar</span></button>
   <div class="stats3"><div class="st"><span class="lbl">Duração</span><span class="v num">~${e.min} min</span></div><div class="st"><span class="lbl">Calorias</span><span class="v num">${e.kcal} kcal</span></div><div class="st"><span class="lbl">Volume</span><span class="v num">${e.load} kg</span><span class="muted small num">${Math.round(e.load * LB)} lb</span></div></div>
-  <button class="btn primary block" data-act="startW" data-id="${w.id}" ${w.exercises.length ? '' : 'disabled'}>Iniciar treino</button>
+  <div style="display:flex;gap:10px"><button class="btn" style="flex:1" data-act="pEdit" ${w.exercises.length ? '' : 'disabled'}>${ic('pencil')} Editar</button><button class="btn primary" style="flex:2" data-act="startW" data-id="${w.id}" ${w.exercises.length ? '' : 'disabled'}>Iniciar treino</button></div>
   <div class="sec"><h2>Lista de exercícios</h2>${rows ? '<p class="muted small" style="margin:-4px 0 4px">Toque e segure um exercício para mudar a ordem.</p>' : ''}${rows || '<div class="empty">Adicione o primeiro exercício.</div>'}</div>
   ${gt.length ? `<div class="sec"><h2>Séries e volume por grupo</h2>${gtHtml(gt)}${m.s.length ? `<div class="lbl" style="margin:14px 0 6px">Também trabalhados</div><div class="chips">${m.s.map(x => `<span class="mchip">${x}</span>`).join('')}</div>` : ''}</div>` : ''}
   <button class="fab" data-act="addEx">${ic('plus')} Adicionar</button>`;
@@ -1435,6 +1510,9 @@ function selDate() { const k = view.sel || dkey(new Date()), [y, m, d] = k.split
 function sessFromWorkout(w, date) {
   return {id: uid(), date, name: w.name, routine: '', durMs: est(w).min * 60000, manual: true, exercises: w.exercises.map(e => { const l = getEx(e.exId); return {exId: e.exId, name: l.name, variant: e.variant, grip: e.grip || '', note: '', sets: Array.from({length: e.sets}, (_, i) => l.type === 'time' ? {secs: e.secs, done: true} : {reps: e.repsMax, kg: e.kgMin, rir: (e.rir || [])[i] ?? S.settings.defaultRir, done: true})}; })};
 }
+/* par kg + lb ligado: digitar em um atualiza o outro; o valor exato digitado em lb fica guardado */
+const kgLbInputs = (id, kg) => `<input type="text" inputmode="decimal" id="${id}" data-lk="kg" data-pair="${id}_lb" value="${kg != null && kg !== '' ? fmtN(kg) : ''}" ${kg != null && kg !== '' ? `data-canon="${kg}"` : ''} aria-label="Carga em kg"><input type="text" inputmode="decimal" id="${id}_lb" data-lk="lb" data-pair="${id}" value="${kg != null && kg !== '' ? f1(kg * LB) : ''}" aria-label="Carga em libras">`;
+function readKg(id) { const el = document.getElementById(id); if (!el) return 0; return el.dataset.canon != null && el.dataset.canon !== '' ? +el.dataset.canon : num(el.value); }
 function openDraft(src, isNew) { draft = JSON.parse(JSON.stringify(src)); draft.exercises = draft.exercises || []; draft.exercises.forEach(e => e.sets = e.sets.filter(x => x.done !== false)); draft._new = isNew; draft.origDur = src.durMs; go({n: 'sedit'}); }
 function syncDraft() {
   if (!draft) return; const g = id => document.getElementById(id);
@@ -1444,7 +1522,7 @@ function syncDraft() {
   if (g('se_hr')) draft.hr = Math.round(num(g('se_hr').value)) || null;
   draft.exercises.forEach((e, i) => e.sets.forEach((s, j) => {
     const t = g('se_s_' + i + '_' + j); if (t) s.secs = Math.max(0, Math.round(num(t.value)));
-    const r = g('se_r_' + i + '_' + j); if (r) { s.reps = Math.max(0, Math.round(num(r.value))); s.kg = Math.max(0, num(g('se_k_' + i + '_' + j).value)); s.rir = +g('se_i_' + i + '_' + j).value; }
+    const r = g('se_r_' + i + '_' + j); if (r) { s.reps = Math.max(0, Math.round(num(r.value))); s.kg = Math.max(0, readKg('se_k_' + i + '_' + j)); s.rir = +g('se_i_' + i + '_' + j).value; }
     s.done = true;
   }));
 }
@@ -1462,6 +1540,51 @@ function saveDraft() {
   if (view.n === 'history') { const dt = new Date(d.date); view.sel = dkey(dt); view.ym = {y: dt.getFullYear(), m: dt.getMonth()}; render(); }
   toast(isNew ? 'Treino adicionado' : 'Treino atualizado');
 }
+let pdraft = null;
+function openPlanEditor(id) {
+  const f = findW(id); if (!f) return;
+  const seenG = new Set();
+  pdraft = {id, ex: f.w.exercises.map(c => {
+    const l = getEx(c.exId), time = l.type === 'time', g = l.primary[0], first = !seenG.has(g); seenG.add(g);
+    if (time) return {time: true};
+    const last = rowsFromLast(c);
+    const rows = c.plan && c.plan.length ? JSON.parse(JSON.stringify(c.plan)) : last ? last.rows : Array.from({length: c.sets}, () => ({reps: c.repsMax, kg: c.kgMin || 0}));
+    let ki = {}; rows.forEach(r => { if (r.kind) { ki[r.kind] = (ki[r.kind] || 0) + 1; r.kn = ki[r.kind]; } });
+    return {rows, tech: c.tech || 'normal', warmN: c.warmN ?? (first ? 2 : 0), src: c.plan && c.plan.length ? 'plano salvo' : last ? 'último treino (' + new Date(last.date).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'}) + ')' : 'padrão do exercício', note: ''};
+  })};
+  go({n: 'pedit', id});
+}
+function peSync() {
+  if (!pdraft) return;
+  pdraft.ex.forEach((x, i) => {
+    if (x.time) return;
+    const t = document.getElementById('pe_t_' + i); if (t) x.tech = t.value;
+    const w = document.getElementById('pe_w_' + i); if (w) x.warmN = +w.value;
+    x.rows.forEach((r, j) => { const re = document.getElementById(`pe_r_${i}_${j}`); if (re) r.reps = Math.max(0, Math.round(num(re.value))); if (document.getElementById(`pe_k_${i}_${j}`)) r.kg = Math.max(0, readKg(`pe_k_${i}_${j}`)); });
+  });
+}
+function peditView() {
+  const f = pdraft && findW(pdraft.id); if (!f) return '<div class="empty">Nada para editar.</div>';
+  return `<div class="top"><button class="ib" data-act="peCancel" aria-label="Cancelar">${ic('x')}</button><h1>Editar ${esc(f.w.name)}</h1></div>
+  <p class="muted small" style="margin:-4px 0 8px">Séries, repetições e cargas de cada exercício. Começa com o que você fez no último treino. "Calcular" estima as cargas pelo seu histórico, pelas repetições, pelo RIR e pela técnica escolhida.</p>
+  <button class="btn block" data-act="peCalcAll">Calcular cargas de todos</button>
+  ${f.w.exercises.map((c, i) => { const x = pdraft.ex[i], l = getEx(c.exId);
+    if (x.time) return `<div class="card" style="padding:12px 14px;margin-top:12px"><div style="display:flex;align-items:center;gap:10px">${tileOf(l)}<b style="flex:1">${esc(exLabel(Object.assign({name: l.name}, c)))}</b></div><p class="muted small" style="margin:6px 0 0">Exercício por tempo: ajuste na tela do exercício.</p></div>`;
+    return `<div class="card" style="padding:12px 14px;margin-top:12px"><div style="display:flex;align-items:center;gap:10px">${tileOf(l)}<span style="flex:1;min-width:0"><b>${esc(exLabel(Object.assign({name: l.name}, c)))}</b><span class="muted small" style="display:block">Base: ${esc(x.src)}${x.note ? ' · ' + esc(x.note) : ''}</span></span></div>
+    <div class="pectl"><select id="pe_t_${i}" aria-label="Técnica">${selOpts(TECH, x.tech)}</select><select id="pe_w_${i}" aria-label="Séries de aquecimento">${selOpts([[0, 'Sem aquecimento'], [1, '1 aquecimento'], [2, '2 aquecimentos'], [3, '3 aquecimentos']], x.warmN)}</select><button class="btn sm primary" data-act="peCalc" data-i="${i}">Calcular</button></div>
+    <div class="perow muted small"><span>#</span><span>Reps</span><span>kg</span><span>lb</span><span>Tipo</span><span></span></div>
+    ${x.rows.map((r, j) => `<div class="perow"><span class="sn" style="width:24px;height:24px;font-size:12px">${j + 1}</span><input type="number" inputmode="numeric" id="pe_r_${i}_${j}" value="${r.reps ?? ''}" aria-label="Repetições">${kgLbInputs(`pe_k_${i}_${j}`, r.kg)}${r.kind ? `<span class="chipm" style="text-align:center;padding:4px 2px">${r.kind === 'drop' ? 'Drop' : 'RP'} ${r.kn || ''}</span>` : `<button class="wtag ${r.warm ? 'on' : ''}" data-act="peWarm" data-i="${i}" data-j="${j}">${r.warm ? 'Aquec.' : 'Válida'}</button>`}<button class="ib" data-act="peDel" data-i="${i}" data-j="${j}" aria-label="Remover série">${ic('x')}</button></div>`).join('')}
+    <button class="addset" data-act="peAdd" data-i="${i}">+ Série</button></div>`; }).join('')}
+  <div style="display:flex;flex-direction:column;gap:10px;margin-top:18px"><button class="btn primary block" data-act="peSave">Salvar</button></div>`;
+}
+function peCalcOne(i) {
+  const f = findW(pdraft.id), c = f.w.exercises[i], x = pdraft.ex[i]; if (x.time) return false;
+  const e = estE1(Object.assign({}, c, {plan: x.rows}));
+  if (!e) { x.note = 'sem histórico para estimar: preencha a carga de uma série'; return false; }
+  x.rows = calcRows(Object.assign({}, c, {plan: x.rows}), x.tech, x.warmN, e.e1);
+  x.note = `1RM estimado ${fmtN(Math.round(e.e1))} kg (${e.how})`; x.src = 'calculado';
+  return true;
+}
 function seditView() {
   const d = draft; if (!d) return '<div class="empty">Nada para editar.</div>';
   return `<div class="top"><button class="ib" data-act="seCancel" aria-label="Cancelar">${ic('x')}</button><h1>${d._new ? 'Adicionar treino' : 'Editar treino'}</h1></div>
@@ -1470,8 +1593,8 @@ function seditView() {
     <div class="fr3" style="grid-template-columns:1.6fr 1fr 1fr"><div class="field"><label class="lbl" for="se_date">Data e hora</label><input type="datetime-local" id="se_date" value="${toLocal(d.date)}"></div><div class="field"><label class="lbl" for="se_hr">FC média (bpm)</label><input type="text" inputmode="numeric" id="se_hr" value="${d.hr || ''}" placeholder="opcional"></div><div class="field"><label class="lbl" for="se_dur">Duração (min)</label><input type="number" inputmode="numeric" id="se_dur" value="${Math.round(d.durMs / 60000)}"></div></div>
   </div>
   ${d.exercises.map((e, i) => { const l = getEx(e.exId), time = l.type === 'time'; return `<div class="card" style="padding:12px 14px;margin-top:14px"><div style="display:flex;align-items:center;gap:10px">${tileOf(l)}<b style="flex:1;min-width:0">${esc(exLabel(e))}</b><button class="ib" data-act="seDelEx" data-i="${i}" aria-label="Remover exercício">${ic('x')}</button></div>
-    <div class="serow muted small" style="margin-top:10px"><span>#</span>${time ? '<span>Segundos</span><span></span><span></span><span></span>' : '<span>Reps</span><span>kg</span><span>RIR</span><span>Tipo</span>'}<span></span></div>
-    ${e.sets.map((st, j) => `<div class="serow"><span class="sn" style="width:26px;height:26px;font-size:13px">${j + 1}</span>${time ? `<input type="number" inputmode="numeric" id="se_s_${i}_${j}" value="${st.secs ?? 30}" aria-label="Segundos"><span></span><span></span><span></span>` : `<input type="number" inputmode="numeric" id="se_r_${i}_${j}" value="${st.reps ?? ''}" aria-label="Repetições"><input type="number" inputmode="decimal" step="any" id="se_k_${i}_${j}" value="${st.kg ?? ''}" aria-label="Carga em kg"><select id="se_i_${i}_${j}" aria-label="RIR">${rirOpts(st.rir ?? S.settings.defaultRir)}</select><button class="wtag ${st.warm ? 'on' : ''}" data-act="seWarm" data-i="${i}" data-j="${j}" aria-pressed="${!!st.warm}">${st.warm ? 'Aquec.' : 'Válida'}</button>`}<button class="ib" data-act="seDelSet" data-i="${i}" data-j="${j}" aria-label="Remover série">${ic('x')}</button></div>`).join('')}
+    <div class="serow muted small" style="margin-top:10px"><span>#</span>${time ? '<span>Segundos</span><span></span><span></span><span></span><span></span>' : '<span>Reps</span><span>kg</span><span>lb</span><span>RIR</span><span>Tipo</span>'}<span></span></div>
+    ${e.sets.map((st, j) => `<div class="serow"><span class="sn" style="width:26px;height:26px;font-size:13px">${j + 1}</span>${time ? `<input type="number" inputmode="numeric" id="se_s_${i}_${j}" value="${st.secs ?? 30}" aria-label="Segundos"><span></span><span></span><span></span><span></span>` : `<input type="number" inputmode="numeric" id="se_r_${i}_${j}" value="${st.reps ?? ''}" aria-label="Repetições">${kgLbInputs('se_k_' + i + '_' + j, st.kg)}<select id="se_i_${i}_${j}" aria-label="RIR">${rirOpts(st.rir ?? S.settings.defaultRir)}</select><button class="wtag ${st.warm ? 'on' : ''}" data-act="seWarm" data-i="${i}" data-j="${j}" aria-pressed="${!!st.warm}">${st.warm ? 'Aquec.' : 'Válida'}</button>`}<button class="ib" data-act="seDelSet" data-i="${i}" data-j="${j}" aria-label="Remover série">${ic('x')}</button></div>`).join('')}
     <button class="addset" data-act="seAddSet" data-i="${i}">+ Série</button></div>`; }).join('')}
   <button class="btn block" style="margin-top:14px" data-act="seAddEx">${ic('plus')} Adicionar exercício</button>
   <div style="display:flex;flex-direction:column;gap:10px;margin-top:18px"><button class="btn primary block" data-act="seSave">Salvar</button>${d._new ? '' : '<button class="btn block danger" data-act="seDelAsk">Excluir treino</button>'}</div>`;
@@ -1727,6 +1850,10 @@ function buildRunEx(cfg) {
     const l = last && last.length ? last[Math.min(i, last.length - 1)] : null;
     sets.push(lib.type === 'time' ? {secs: cfg.secs, done: false} : {reps: l ? l.reps : cfg.repsMax, kg: l ? l.kg : cfg.kgMin, rir: (cfg.rir && cfg.rir[i] != null) ? cfg.rir[i] : S.settings.defaultRir, tempo: (cfg.tempoSets && cfg.tempoSets[i]) || '', done: false});
   }
+  if (lib.type !== 'time' && cfg.plan && cfg.plan.length) {
+    sets.length = 0; let wi = 0;
+    cfg.plan.forEach(p => { const rr = cfg.rir && cfg.rir.length ? cfg.rir[Math.min(wi, cfg.rir.length - 1)] : S.settings.defaultRir; sets.push({reps: p.reps, kg: p.kg, rir: p.warm ? null : p.kind ? 0 : rr, warm: !!p.warm, kind: p.kind || '', kn: p.kn || 0, tempo: '', done: false}); if (!p.warm && !p.kind) wi++; });
+  }
   return {cfg, exId: cfg.exId, name: lib.name, variant: cfg.variant, grip: cfg.grip || '', type: lib.type, primary: lib.primary, secondary: lib.secondary, sets, note: '', rest: cfg.rest ?? S.settings.defaultRest, prep: (cfg.prep != null && cfg.prep !== '') ? +cfg.prep : null, tempo: lib.type === 'time' ? '' : (cfg.tempo || cfg.tempoW || (run && run.workoutId && findW(run.workoutId) ? tempoOf({}, findW(run.workoutId).w) : S.settings.tempo))};
 }
 let audio = null;
@@ -1750,9 +1877,9 @@ function startRun(w, rname) {
 }
 function setPhase(p) {
   if (run.phase !== 'done') run.tot[run.phase] += elapsed();
-  const prev = run.phase; run.phase = p; run.phaseStart = Date.now(); run.pausedAt = null; run.fired = 0;
+  const prev = run.phase; run.phase = p; run.phaseStart = Date.now(); run.pausedAt = null; run.fired = 0; if (p !== 'prepare') run.prepOv = null;
   if (p === 'exec' && prev !== 'exec' && !run.sndDone) startSound();
-  if (p === 'prepare' && S.settings.sound && S.settings.countMode !== 'off' && audio) { try { ac(); holdAudio(prepOf(curEx()) * 1000 + 3500); } catch (e) {} }
+  if (p === 'prepare' && S.settings.sound && S.settings.countMode !== 'off' && audio) { try { ac(); holdAudio(curPrep() * 1000 + 3500); } catch (e) {} }
   run.sndDone = false;
   if (p === 'rest') run.restTotal = (curEx() ? curEx().rest : S.settings.defaultRest) * 1000;
   persistRun();
@@ -1772,6 +1899,8 @@ function runNext() {
     const s = curEx().sets[run.setIdx]; s.done = true; s.actual = Math.round(elapsed() / 1000);
     const t = nextTarget();
     if (!t) return finishRun();
+    const ns = run.exs[t[0]].sets[t[1]];
+    if (t[0] === run.exIdx && ns && ns.kind) { run.prevPtr = [run.exIdx, run.setIdx]; run.setIdx = t[1]; run.prepOv = ns.kind === 'rp' ? 10 : null; setPhase(prepPh()); persistRun(); render(); return; }
     const restFor = curEx().rest;
     run.prevPtr = [run.exIdx, run.setIdx];
     run.exIdx = t[0]; run.setIdx = t[1];
@@ -1803,7 +1932,7 @@ function phaseView() {
   const color = {warmup: 'var(--warmup)', prepare: 'var(--prepare)', exec: 'var(--exec)', rest: 'var(--rest)'}[P] || 'var(--accent)';
   let big = '', cap = '', prog = 0, count = false, rem = 0;
   if (P === 'warmup') { big = 'Vamos lá!'; cap = `Faça o aquecimento <span class="num">${ic('timer', '')}</span>`; }
-  if (P === 'prepare') { count = true; const total = Math.max(1, prepOf(ex)) * 1000; rem = Math.max(0, total - el); prog = el / total; }
+  if (P === 'prepare') { count = true; const total = Math.max(1, curPrep()) * 1000; rem = Math.max(0, total - el); prog = el / total; }
   if (P === 'rest') { count = true; rem = Math.max(0, run.restTotal - el); prog = el / run.restTotal; }
   if (P === 'exec') { if (ex.type === 'time') { count = true; const total = s.secs * 1000; rem = Math.max(0, total - el); prog = el / total; } }
   return {P, color, big, count, rem, prog: Math.min(1, prog), el, s, ex};
@@ -1817,7 +1946,9 @@ function sheetHtml() {
   const back = (P === 'exec' || P === 'prepare' || P === 'rest') ? `<button class="btn ghost back" data-act="rbackBtn">Voltar</button>` : '';
   const extra = P === 'rest' ? `<button class="ibsq" data-act="restPlus" aria-label="Mais 15 segundos"><b class="disp">+15</b></button>` : '';
   const pz = `<button class="ibsq" data-act="pauseBtn" aria-label="${run.pausedAt ? 'Continuar' : 'Pausar'}">${ic(run.pausedAt ? 'play' : 'pause')}</button>`;
-  return `<div style="--ph:${v.color}"><div class="bar" id="pbar" style="width:${Math.round(v.prog * 100)}%"></div><div class="ph">${timeBlock}</div><div class="row">${pz}${extra}${back}<button class="btn primary" data-act="rnext">${P === 'rest' ? 'Pular' : 'Próximo'}</button></div></div>`;
+  let rirRow = '';
+  if (P === 'rest' && run.prevPtr) { const pe = run.exs[run.prevPtr[0]], ps = pe && pe.sets[run.prevPtr[1]]; if (ps && pe.type !== 'time' && !ps.warm) rirRow = `<div class="rirpick"><span>RIR da série que terminou:</span>${[0, 1, 2, 3, 4, 5].map(n => `<button class="${(ps.rir ?? -1) === n ? 'on' : ''}" data-act="rirPick" data-v="${n}">${n === 5 ? '5+' : n}</button>`).join('')}</div>`; }
+  return `<div class="p-${P}" style="--ph:${v.color}"><div class="bar" id="pbar" style="width:${Math.round(v.prog * 100)}%"></div><div class="ph">${timeBlock}</div>${rirRow}<div class="row">${pz}${extra}${back}<button class="btn primary" data-act="rnext">${P === 'rest' ? 'Pular' : 'Próximo'}</button></div></div>`;
 }
 function runView() {
   if (run.phase === 'done') return summaryView();
@@ -1831,7 +1962,7 @@ function runView() {
     const tp = s.tempo && s.tempo !== ex.tempo ? `<span class="chipm">${s.tempo}</span>` : '';
     const warmBtn = ex.type === 'time' ? '' : `<button class="wtag ${s.warm ? 'on' : ''}" data-act="togWarm" data-i="${run.exIdx}" data-j="${i}" aria-pressed="${!!s.warm}" aria-label="Série de aquecimento">${s.warm ? 'Aquec.' : 'Válida'}</button>`;
     const body = ex.type === 'time' ? (isCardio(ex) ? `<span ${qa('secs')}><span>${fmtMin(s.secs)}</span><small>min</small></span>` : `<span ${qa('secs')}><span>${s.secs}</span><small>s</small></span>`)
-      : `<div class="sgrid" style="--fs:${fs}px"><span ${qa('kg')} aria-label="Editar carga em kg"><b>${kgT}</b><small>kg</small></span><span ${qa('lb')} aria-label="Editar carga em libras"><b>${lbT}</b><small>lb</small></span><span class="sx" aria-hidden="true">×</span><span ${qa('reps')} aria-label="Editar repetições"><b>${rT}</b><small>reps</small></span></div><div class="smeta"><span class="chipm">RIR ${s.rir ?? S.settings.defaultRir}</span>${tp}<span style="flex:1"></span>${warmBtn}</div>`;
+      : `<div class="sgrid" style="--fs:${fs}px"><span ${qa('kg')} aria-label="Editar carga em kg"><b>${kgT}</b><small>kg</small></span><span ${qa('lb')} aria-label="Editar carga em libras"><b>${lbT}</b><small>lb</small></span><span class="sx" aria-hidden="true">×</span><span ${qa('reps')} aria-label="Editar repetições"><b>${rT}</b><small>reps</small></span></div><div class="smeta">${s.warm ? '<span class="chipm">Aquecimento</span>' : `<span class="chipm">RIR ${s.rir ?? S.settings.defaultRir}</span>`}${s.kind ? `<span class="chipm" style="border-color:var(--accent);color:var(--accent)">${s.kind === 'drop' ? 'Drop' : 'Rest-pause'} ${s.kn || ''}</span>` : ''}${tp}<span style="flex:1"></span>${warmBtn}</div>`;
     return `<div class="swrap sset"><div class="sacts"><button class="sa3" data-act="delSet" data-i="${run.exIdx}" data-j="${i}">Excluir</button></div><div class="setline ${cls}${s.warm ? ' wset' : ''}" data-swipe="1"><span class="sn">${i + 1}</span><div class="setcard ${ex.type === 'time' ? '' : 'sc2'}" role="button" tabindex="0" style="cursor:pointer" data-act="editSet" data-i="${run.exIdx}" data-j="${i}" aria-label="Detalhes da série ${i + 1}">${body}</div></div></div>`;
   }).join('');
   const list = run.exs.map((e, i) => {
@@ -1875,9 +2006,10 @@ function statsBody(r) {
 function runStatsView() { return `<div class="top"><button class="ib" data-act="back" aria-label="Voltar">${ic('back')}</button><h1>Estatísticas</h1></div><div id="statsBody">${statsBody(runStats())}</div>`; }
 function summaryView() {
   const r = runStats();
-  return `<div class="top"><h1>Treino concluído</h1></div><p class="muted">${esc(run.name)} · ${fmtDate(new Date(run.startedAt).toISOString())}</p>
+  const allDone = run.exs.every(e => e.sets.every(x => x.done));
+  return `<div class="top"><h1>${allDone ? 'Treino concluído' : 'Treino encerrado'}</h1></div><p class="muted">${esc(run.name)} · ${fmtDate(new Date(run.startedAt).toISOString())}</p><p class="muted small" style="margin-top:-6px">Confira as séries: toque em Válida/Aquec. para corrigir quais foram de aquecimento antes de salvar.</p>
   ${statsBody(r)}
-  <div class="sec"><h2>Exercícios</h2>${run.exs.map(e => { const d = e.sets.filter(x => x.done); const vol = d.reduce((a, x) => a + (x.reps || 0) * (x.kg || 0), 0); return `<div class="card" style="padding:10px 14px;margin-bottom:10px"><div style="display:flex;gap:10px;align-items:center">${tileOf(getEx(e.exId))}<b style="flex:1;min-width:0">${esc(exLabel(e))}</b><span class="muted small num">${d.length}/${e.sets.length} séries</span></div>${d.map((x, i) => `<div class="hset"><span class="sn" style="width:26px;height:26px;font-size:13px">${i + 1}</span><span style="flex:1">${x.reps != null ? `<b>${fmtN(x.reps)}</b> reps · <b>${fmtN(x.kg)}</b> kg <span class="muted small">(${f1(x.kg * LB)} lb)</span>` : `<b>${x.secs}</b> s`}</span>${x.actual != null ? `<span class="muted small">${longT(x.actual * 1000)}</span>` : ''}${x.rir != null ? `<span class="muted small">RIR ${x.rir}</span>` : ''}</div>`).join('')}${vol ? `<div class="muted small" style="padding-top:6px">Volume: ${kgLb(vol)}</div>` : ''}</div>`; }).join('')}</div>
+  <div class="sec"><h2>Exercícios</h2>${run.exs.map(e => { const d = e.sets.filter(x => x.done); const vol = d.reduce((a, x) => a + (x.reps || 0) * (x.kg || 0), 0); return `<div class="card" style="padding:10px 14px;margin-bottom:10px"><div style="display:flex;gap:10px;align-items:center">${tileOf(getEx(e.exId))}<b style="flex:1;min-width:0">${esc(exLabel(e))}</b><span class="muted small num">${d.length}/${e.sets.length} séries</span></div>${e.sets.map((x, j) => x.done ? `<div class="hset"><span class="sn" style="width:26px;height:26px;font-size:13px">${j + 1}</span><span style="flex:1">${x.reps != null ? `<b>${fmtN(x.kg)}</b> kg <span class="muted small">(${f1(x.kg * LB)} lb)</span> × <b>${fmtN(x.reps)}</b>${!x.warm && x.rir != null ? ` <span class="muted small">· RIR ${x.rir}</span>` : ''}` : `<b>${x.secs}</b> s`}</span>${e.type === 'time' ? '' : `<button class="wtag ${x.warm ? 'on' : ''}" data-act="togWarm" data-i="${run.exs.indexOf(e)}" data-j="${j}" aria-pressed="${!!x.warm}">${x.warm ? 'Aquec.' : 'Válida'}</button>`}</div>` : '').join('')}${vol ? `<div class="muted small" style="padding-top:6px">Volume: ${kgLb(vol)}</div>` : ''}</div>`; }).join('')}</div>
   <div class="sec"><h2>Frequência cardíaca (opcional)</h2><div class="card" style="padding:14px;display:flex;flex-direction:column;gap:8px"><label class="uf"><input type="text" inputmode="numeric" id="hr_avg" placeholder="Média do relógio" aria-label="Frequência cardíaca média"><span>bpm</span></label><span class="muted small">Se você digitar a média que o relógio mostrou, as calorias passam a ser calculadas pela frequência cardíaca (precisa da idade na aba Corpo).</span></div></div>
   <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px"><button class="btn primary block" data-act="saveRun">Salvar no histórico</button><button class="btn block danger" data-act="discardRun">Descartar</button></div>`;
 }
@@ -1885,7 +2017,7 @@ function saveRun() {
   const r = runStats(), hr = Math.round(num(val('hr_avg'))) || null, kh = kcalHR(hr, r.time);
   if (kh != null) r.kcal = kh;
   const s = {id: run.id, workoutId: run.workoutId, date: new Date(run.startedAt).toISOString(), name: run.name, routine: run.routine, durMs: r.time, tot: r.tot, kcal: r.kcal, hr, sets: r.done, reps: r.reps, volume: r.vol,
-    exercises: run.exs.map(e => ({exId: e.exId, name: e.name, variant: e.variant, grip: e.grip, tempo: e.tempo || '', note: e.note, sets: e.sets.map(x => ({reps: x.reps, kg: x.kg, rir: x.rir, tempo: x.tempo || '', secs: x.secs, actual: x.actual, done: x.done, warm: !!x.warm}))}))};
+    exercises: run.exs.map(e => ({exId: e.exId, name: e.name, variant: e.variant, grip: e.grip, tempo: e.tempo || '', note: e.note, sets: e.sets.map(x => ({reps: x.reps, kg: x.kg, rir: x.warm ? null : x.rir, kind: x.kind || '', tempo: x.tempo || '', secs: x.secs, actual: x.actual, done: x.done, warm: !!x.warm}))}))};
   sessions.unshift(s); persistSessions(); cloudSession(s);
   const did = run.exs.some(e => e.sets.some(vset)), fw = findW(run.workoutId);
   if (did && fw && fw.r.workouts.length > 1) { const i = fw.r.workouts.indexOf(fw.w); fw.r.workouts.splice(i, 1); fw.r.workouts.push(fw.w); persist(); }
@@ -1911,26 +2043,30 @@ function promptBox(title, value, act, d) {
 }
 const haveEq = id => S.equip === null || S.equip.includes(id);
 const availEx = e => (e.eq || []).every(haveEq);
-let pickCb = null, pickSel = new Set(), pickAll = false, pickPreset = {};
+let pickCb = null, pickSel = new Set(), pickAll = false, pickPreset = {}, pickEq = '', pickAnyG = false;
 function ctxGroups() { if (view.n === 'workout') { const f = findW(view.id); return f ? f.w.groups : null; } if ((view.n === 'run' || view.n === 'runstats') && run) { const f = findW(run.workoutId); return f ? f.w.groups : null; } return null; }
 let pickMany = null; const pickChosen = new Map();
 const pkKey = (id, v, g) => id + '|' + (v || '') + '|' + (g || '');
-function pickEx(cb, groups, many) { pickCb = cb; pickMany = many || null; pickChosen.clear(); pickAll = false; const g = groups !== undefined ? groups : ctxGroups(); pickSel = new Set(g || []); if (pickSel.size) pickStep2(); else pickGroups(); }
+function pickEx(cb, groups, many) { pickCb = cb; pickMany = many || null; pickChosen.clear(); pickAll = false; pickEq = ''; pickAnyG = false; const g = groups !== undefined ? groups : ctxGroups(); pickSel = new Set(g || []); if (pickSel.size) pickStep2(); else pickGroups(); }
 function pickGroups() {
   modal(`<h2>Grupos musculares</h2><p class="muted" style="margin:0">Escolha um ou mais grupos.</p><div class="chips">${MUSC.map(m => `<button class="gchip ${pickSel.has(m) ? 'on' : ''}" data-act="togG" data-g="${m}" aria-pressed="${pickSel.has(m)}">${m}</button>`).join('')}</div><button class="btn primary block" id="pn" data-act="pickNext" ${pickSel.size ? '' : 'disabled'}>Continuar</button>`);
 }
 function pickStep2() {
-  modal(`<h2>Exercícios</h2><div class="chips">${[...pickSel].map(g => `<span class="mchip">${g}</span>`).join('')}<button class="mchip" data-act="pickBack" style="color:var(--accent)">Trocar grupos</button></div><input type="text" id="pq" placeholder="Buscar em todos (ex.: tríceps polia, peito halter)" aria-label="Buscar exercício" autocomplete="off"><div class="chips" id="ptags">${tagsHtml('')}</div><div class="pick" id="plist">${pickList('')}</div>
+  modal(`<h2>Exercícios</h2><div class="chips">${[...pickSel].map(g => `<span class="mchip">${g}</span>`).join('')}<button class="mchip" data-act="pickBack" style="color:var(--accent)">Trocar grupos</button></div><input type="text" id="pq" placeholder="Buscar nos grupos escolhidos (ex.: polia, halter)" aria-label="Buscar exercício" autocomplete="off">
+  <div class="pfil"><select id="peq" data-act-change="pickEqSel" aria-label="Filtrar por aparelho"><option value="">Todos os aparelhos</option><option value="_livre" ${pickEq === '_livre' ? 'selected' : ''}>Sem aparelho (peso do corpo)</option>${EQUIP.map(e => `<option value="${e.id}" ${pickEq === e.id ? 'selected' : ''}>${esc(e.name)}</option>`).join('')}</select><button class="mchip ${pickAnyG ? 'on' : ''}" data-act="pickAnyTog" aria-pressed="${pickAnyG}">${pickAnyG ? 'Todos os grupos' : 'Só os grupos escolhidos'}</button></div><div class="chips" id="ptags">${tagsHtml('')}</div><div class="pick" id="plist">${pickList('')}</div>
   <div class="set" style="padding:0;border:0;align-items:center"><div class="t"><b>Mostrar outros equipamentos</b><span class="muted small">Inclui exercícios que a sua academia não tem.</span></div><button class="sw2 ${pickAll ? 'on' : ''}" role="switch" aria-checked="${pickAll}" aria-label="Mostrar outros equipamentos" data-act="pickAllTog"></button></div>
   <button class="btn block" data-act="newCustom">${ic('plus')} Criar exercício</button>${pickMany ? '<div id="pfoot" style="position:sticky;bottom:-18px;background:var(--surface);padding:10px 0 4px;margin-top:-6px">' + pickFoot() + '</div>' : ''}`);
 }
 function pickList(q) {
   q = q.trim().toLowerCase();
   const toks = normTxt(q).split(/\s+/).filter(Boolean);
-  const base = allEx().filter(e => toks.length ? toks.every(t => (' ' + exHay(e).replace(/[^a-z0-9]+/g, ' ')).includes(' ' + t)) : e.primary.some(g => pickSel.has(g)));
+  const inG = e => pickAnyG || !pickSel.size || e.primary.some(g => pickSel.has(g)), inEq = e => !pickEq || (pickEq === '_livre' ? !(e.eq || []).length : (e.eq || []).includes(pickEq));
+  const base = allEx().filter(e => inG(e) && inEq(e) && (!toks.length || toks.every(t => (' ' + exHay(e).replace(/[^a-z0-9]+/g, ' ')).includes(' ' + t))))
+    .sort((a, b) => (pickSel.has(b.primary[0]) ? 1 : 0) - (pickSel.has(a.primary[0]) ? 1 : 0));
   const l = pickAll ? base : base.filter(availEx), hidden = base.length - l.length;
   const items = l.map(pickItem).join('');
-  return (items || '<div class="empty">Nada encontrado.</div>') + (hidden ? `<div class="muted small" style="padding:10px 4px">${hidden} exercício(s) oculto(s): equipamento não marcado em Minha academia.</div>` : '');
+  const outside = !pickAnyG && toks.length && pickSel.size ? allEx().filter(e => !inG(e) && inEq(e) && toks.every(t => (' ' + exHay(e).replace(/[^a-z0-9]+/g, ' ')).includes(' ' + t))).length : 0;
+  return (items || '<div class="empty">Nada nos grupos escolhidos.</div>') + (outside ? `<button class="mchip" style="margin:8px 0" data-act="pickAnyTog">+ ${outside} em outros grupos: mostrar</button>` : '') + (hidden ? `<div class="muted small" style="padding:10px 4px">${hidden} exercício(s) oculto(s): equipamento não marcado em Minha academia.</div>` : '');
 }
 const normTxt = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const ALIAS = {'rosca-polia-alta': 'biceps polia alta cross crossover cabo duplo biceps crucifixo biceps bracos abertos', 'rosca-polia-alta-uni': 'biceps unilateral polia alta cross crossover cabo um braco', 'rosca-polia-baixa-uni': 'biceps unilateral polia baixa cross cabo um braco', 'rosca-inclinada-halteres': 'biceps rosca inclinada banco inclinado halter halteres', 'rosca-inclinada-polia': 'biceps rosca inclinada banco inclinado polia baixa cabo cross', 'rosca-spider': 'biceps spider aranha banco inclinado de brucos halter', 'rosca-bayesiana': 'biceps bayesian bayesiana polia cabo de costas cross', 'rosca-concentrada-polia': 'biceps concentrada polia cabo cross sentado', 'rosca-drag': 'biceps drag arrastada barra', 'rosca-zottman': 'biceps zottman antebraco halter', 'rosca-21': 'biceps rosca 21 parciais barra', 'triceps-polia-horizontal': 'extensao de triceps por tras acima da cabeca polia alta de costas para a polia overhead cable horizontal', 'triceps-frances-polia': 'triceps frances na polia vertical acima da cabeca overhead polia baixa', 'triceps-corda': 'pushdown triceps pulley triceps corda', 'puxada-estendida': 'pullover na polia pulldown braco estendido', 'puxada-alta': 'pulldown puxada frente', 'triceps-testa': 'skull crusher', 'pelvica': 'hip thrust', 'stiff': 'romanian deadlift terra romeno', 'face-pull': 'face pull', 'coice-polia': 'kickback gluteo', 'coice-polia-flexionado': 'kickback', 'coice-polia-4apoios': 'kickback quatro apoios', 'coice-diagonal-polia': 'kickback diagonal', 'abducao-polia': 'gluteo medio abducao lateral', 'pull-through': 'pull through', 'remada-alta': 'upright row', 'remada-alta-polia': 'upright row', 'remada-alta-halteres': 'upright row alter'};
@@ -2004,7 +2140,7 @@ function renderRir() {
 }
 function exEditor(cfg, isNew, i) {
   const l = getEx(cfg.exId), time = l.type === 'time', per = new Set(cfg.rir || []).size > 1;
-  modal(`<h2>${esc(l.name)}</h2>
+  modal(`<h2>${esc(l.name)}</h2>${cfg.plan && cfg.plan.length && !time ? `<p class="small" style="margin:0;padding:8px 10px;border-radius:10px;background:var(--surface2)">Este exercício tem ${cfg.plan.length} séries com cargas definidas em <b>Editar</b> (tela do treino)${cfg.tech && cfg.tech !== 'normal' ? ', técnica ' + (TECH.find(t => t[0] === cfg.tech) || ['', ''])[1] : ''}. Mudar o número de séries aqui desfaz esse plano.</p>` : ''}
   <div class="fr"><div class="field"><label for="e_sets" class="lbl">Séries</label><input type="number" inputmode="numeric" id="e_sets" value="${cfg.sets}" data-act-change="rirSets"></div><div class="field"><label for="e_rest" class="lbl">Descanso (s)</label><input type="number" inputmode="numeric" id="e_rest" value="${cfg.rest ?? S.settings.defaultRest}"></div></div>
   <div class="field"><label for="e_prep" class="lbl">Preparo antes de cada série (s)</label><input type="number" inputmode="numeric" id="e_prep" value="${cfg.prep != null && cfg.prep !== '' ? cfg.prep : ''}" placeholder="Padrão dos Ajustes: ${S.settings.prep ? S.settings.prepSec + ' s' : 'desligado'}"><span class="muted small">Deixe vazio para usar o padrão. 0 = sem preparo neste exercício.</span></div>
   ${time ? (isCardio(l) ? `<div class="field"><label for="e_min" class="lbl">Duração (min)</label><input type="number" inputmode="decimal" id="e_min" value="${fmtN(cfg.sets * cfg.secs / 60)}"></div>` : `<div class="field"><label for="e_secs" class="lbl">Tempo por série (s)</label><input type="number" inputmode="numeric" id="e_secs" value="${cfg.secs}"></div>`) :
@@ -2025,6 +2161,15 @@ const val = id => { const e = document.getElementById(id); return e ? e.value : 
 function cvRead(id) { const el = document.getElementById(id), g = el && el.closest('.cvg'); if (g && g.dataset.canon != null && g.dataset.canon !== '') return +g.dataset.canon; return num(el ? el.value : ''); }
 
 /* ---------- render ---------- */
+function miniTxt() {
+  const v = phaseView(), P = v.P;
+  const lab = run.pausedAt ? 'Pausado' : {warmup: 'Aquecimento', prepare: 'Prepare-se', exec: 'Executando', rest: 'Descanso'}[P] || '';
+  return {lab, t: v.count ? mmss(Math.ceil(v.rem / 1000) * 1000) : mmss(v.el), color: run.pausedAt ? 'var(--muted)' : v.color};
+}
+function miniRunHtml() {
+  const m = miniTxt(), ex = curEx();
+  return `<button class="minirun ${run.phase === 'rest' && !run.pausedAt ? 'isrest' : ''}" data-act="toRun" aria-label="Voltar ao treino em andamento" style="--ph:${m.color}"><i class="dot"></i><span class="mt"><b>${esc(run.name)}</b><span id="mrl">${m.lab} · ${esc(exLabel(ex))} · série ${run.setIdx + 1}/${ex.sets.length}</span></span><b class="num" id="mrt">${m.t}</b></button>`;
+}
 function render() {
   const y = window.scrollY;
   let html = '', nav = true;
@@ -2038,9 +2183,12 @@ function render() {
   else if (view.n === 'muscles') html = musclesView();
   else if (view.n === 'exercise') html = exerciseView();
   else if (view.n === 'sedit') html = seditView();
+  else if (view.n === 'pedit') html = peditView();
   else { view = {n: 'home'}; html = homeView(); }
-  if (view.n === 'sedit' || (view.n === 'exercise' && view.from === 'run')) nav = false;
-  $('#app').innerHTML = `<div class="wrap">${html}</div>` + (nav ? navHtml() : '');
+  if (view.n === 'sedit' || view.n === 'pedit' || (view.n === 'exercise' && view.from === 'run')) nav = false;
+  const mini = run && run.phase !== 'done' && view.n !== 'run' && view.n !== 'runstats' && view.n !== 'sedit' && view.n !== 'pedit' ? miniRunHtml() : '';
+  document.body.classList.toggle('hasmini', !!mini);
+  $('#app').innerHTML = `<div class="wrap">${html}</div>` + mini + (nav ? navHtml() : '');
   if (view.n === 'run' && run && run.phase !== 'done') { const sh = $('#sheet'); if (sh) sh.firstElementChild.innerHTML = sheetHtml(); }
   window.scrollTo(0, y);
   mediaUpdate();
@@ -2063,6 +2211,7 @@ setInterval(() => {
     if (v.P === 'exec') buzz();
     if (S.settings.continuous) { runNext(); return; }
   }
+  if (view.n !== 'run') { const mt = $('#mrt'); if (mt) mt.textContent = miniTxt().t; }
   if (view.n === 'run') tickSheet(); else if (view.n === 'runstats') { const b = $('#statsBody'); if (b) b.innerHTML = statsBody(runStats()); }
 }, 250);
 setInterval(() => { if (run && run.phase !== 'done') persistRun(); }, 5000);
@@ -2072,7 +2221,7 @@ const H = {
   tab: d => tab(d.n), back: () => back(), closeModal, scrim: (d, el, e) => { if (e.target === el) closeModal(); },
   openW: d => { closeModal(); go({n: 'workout', id: d.id}); },
   newRoutine: () => promptBox('Nome da rotina', 'Rotina ' + (S.routines.length + 1), 'doNewRoutine'),
-  doNewRoutine: () => { const n = val('pv').trim(); if (!n) return; const r = {id: uid(), name: n, workouts: [], defaults: {sets: 4, repsMin: 8, repsMax: 12, rest: 60}}; S.routines.push(r); persist(); closeModal(); render(); rdModal(r); },
+  doNewRoutine: () => { const n = val('pv').trim(); if (!n) return; const r = {id: uid(), name: n, workouts: [], defaults: {sets: 4, repsMin: 8, repsMax: 12, rest: 60}}; S.routines.forEach(x => x.collapsed = true); S.routines.unshift(r); persist(); closeModal(); render(); rdModal(r); },
   routineMenu: d => menu(S.routines.find(r => r.id === d.id).name, [{t: 'Exportar rotina em texto (.txt)', act: 'txtR', d: {id: d.id}}, {t: 'Padrão dos exercícios (séries, reps, descanso)', act: 'rdOpen', d: {id: d.id}}, {t: 'Renomear', act: 'renRoutine', d: {id: d.id}}, {t: 'Excluir rotina', act: 'delRoutineAsk', d: {id: d.id}, danger: 1}]),
   renRoutine: d => promptBox('Nome da rotina', S.routines.find(r => r.id === d.id).name, 'doRenRoutine', {id: d.id}),
   doRenRoutine: d => { const n = val('pv').trim(); if (!n) return; S.routines.find(r => r.id === d.id).name = n; persist(); closeModal(); render(); },
@@ -2110,6 +2259,7 @@ const H = {
       c.tempo = readTempo('e'); c.tempoSets = (document.getElementById('e_tper') || {}).checked ? readTPer(c.sets) : null;
     }
     { const pv = val('e_prep').trim(); c.prep = pv === '' ? null : Math.max(0, Math.round(num(pv))); }
+    if (c.plan && c.plan.length) { const wk = c.plan.filter(r => !r.warm && !r.kind).length; if (c.sets !== c.plan.length) { c.plan = null; c.tech = 'normal'; } }
     c.variant = val('e_var').trim(); c.grip = val('e_grip');
     if (editFor === 'run') { const r = run.exs[editRunIdx]; const nr = buildRunEx(c); nr.note = r.note; run.exs.splice(editRunIdx, 1, nr); editFor = null; persistRun(); closeModal(); render(); return; }
     const a = findW(view.id).w.exercises;
@@ -2130,8 +2280,8 @@ const H = {
   pauseBtn: () => { if (run.pausedAt) { run.phaseStart += Date.now() - run.pausedAt; run.pausedAt = null; } else run.pausedAt = Date.now(); persistRun(); const sh = $('#sheet'); if (sh) sh.firstElementChild.innerHTML = sheetHtml(); },
   restPlus: () => { run.restTotal += 15000; run.fired = 0; persistRun(); tickSheet(); },
   runStats: () => { stack.push({n: 'run'}); view = {n: 'runstats'}; render(); window.scrollTo(0, 0); },
-  closeRun: () => run.phase === 'done' ? H.discardRun() : modal(`<h2>Encerrar treino?</h2><div style="display:flex;flex-direction:column;gap:10px"><button class="btn primary" data-act="endSave">Encerrar e salvar o que foi feito</button><button class="btn danger" data-act="discardRun">Descartar treino</button><button class="btn" data-act="closeModal">Continuar treinando</button></div>`),
-  endSave: () => { closeModal(); if (!runStats().done) return H.discardRun(); setPhase('done'); saveRun(); },
+  closeRun: () => run.phase === 'done' ? H.discardRun() : modal(`<h2>Encerrar treino?</h2><div style="display:flex;flex-direction:column;gap:10px"><button class="btn primary" data-act="endSave">Encerrar e ver o resumo</button><button class="btn danger" data-act="discardRun">Descartar treino</button><button class="btn" data-act="closeModal">Continuar treinando</button></div>`),
+  endSave: () => { closeModal(); if (!runStats().done) return H.discardRun(); abortExec(); finishRun(); },
   discardRun: () => { closeModal(); run = null; persistRun(); stack = []; view = {n: 'home'}; render(); },
   saveRun: () => saveRun(),
   editSet: d => {
@@ -2157,6 +2307,29 @@ const H = {
   txtR: async d => { closeModal(); const r = S.routines.find(x => x.id === d.id); if (!r) return; const res = await shareFile(txtName('rotina ' + r.name), routineTxt(r), 'text/plain'); if (res === 'saved') toast('Arquivo salvo'); },
   txtW: async () => { closeModal(); const f = findW(view.id); const r = await shareFile(txtName(f.w.name), planTxt(f.w, f.r), 'text/plain'); if (r === 'saved') toast('Arquivo salvo'); },
   txtS: async d => { const s = sessions.find(x => x.id === d.id); if (!s) return; const r = await shareFile(txtName(s.name + ' ' + dkey(new Date(s.date))), sessTxt(s), 'text/plain'); if (r === 'saved') toast('Arquivo salvo'); },
+  rirPick: d => { if (!run || !run.prevPtr) return; const ps = run.exs[run.prevPtr[0]].sets[run.prevPtr[1]]; ps.rir = +d.v; ps.rirSet = true; persistRun(); const sh = $('#sheet'); if (sh) sh.firstElementChild.innerHTML = sheetHtml(); render(); },
+  pickAnyTog: () => { pickAnyG = !pickAnyG; const el = $('.pfil [data-act=pickAnyTog]'); if (el) { el.classList.toggle('on', pickAnyG); el.textContent = pickAnyG ? 'Todos os grupos' : 'Só os grupos escolhidos'; } const l = $('#plist'); if (l) l.innerHTML = pickList(val('pq')); },
+  rCol: d => { const r = S.routines.find(x => x.id === d.id); if (!r) return; r.collapsed = !r.collapsed; persist(); render(); },
+  pEdit: () => openPlanEditor(view.id),
+  peCancel: () => { pdraft = null; back(); },
+  peWarm: d => { peSync(); const r = pdraft.ex[+d.i].rows[+d.j]; r.warm = !r.warm; render(); },
+  peDel: d => { peSync(); const x = pdraft.ex[+d.i]; if (x.rows.length < 2) return toast('Mantenha ao menos uma série'); x.rows.splice(+d.j, 1); render(); },
+  peAdd: d => { peSync(); const x = pdraft.ex[+d.i], l = x.rows.filter(r => !r.kind).pop() || {reps: 10, kg: 0}; const at = x.rows.findIndex(r => r.kind); const nr = {reps: l.reps, kg: l.kg, warm: false}; if (at >= 0) x.rows.splice(at, 0, nr); else x.rows.push(nr); render(); },
+  peCalc: d => { peSync(); if (!peCalcOne(+d.i)) toast('Sem dados para estimar este exercício'); render(); },
+  peCalcAll: () => { peSync(); let n = 0; pdraft.ex.forEach((x, i) => { if (peCalcOne(i)) n++; }); render(); toast(n ? `Cargas calculadas em ${n} exercício${n > 1 ? 's' : ''}` : 'Sem dados para estimar'); },
+  peSave: () => {
+    peSync(); const f = findW(pdraft.id); if (!f) return;
+    f.w.exercises.forEach((c, i) => {
+      const x = pdraft.ex[i]; if (x.time) return;
+      c.plan = x.rows.map(r => ({reps: r.reps, kg: r.kg, warm: !!r.warm, kind: r.kind || '', kn: r.kn || 0}));
+      c.tech = x.tech; c.warmN = x.warmN; c.sets = c.plan.length;
+      const wk = c.plan.filter(r => !r.warm && !r.kind);
+      if (wk.length) { c.repsMin = Math.min(...wk.map(r => r.reps)); c.repsMax = Math.max(...wk.map(r => r.reps)); c.kgMin = Math.min(...wk.map(r => r.kg)); c.kgMax = Math.max(...wk.map(r => r.kg)); const rr = (c.rir && c.rir[0] != null) ? c.rir : [S.settings.defaultRir]; c.rir = Array.from({length: c.plan.length}, (_, k) => rr[Math.min(k, rr.length - 1)]); }
+      if (x.tech === 'gironda') c.rest = 30; if (x.tech === 'fst7') c.rest = 40;
+    });
+    persist(); pdraft = null; back(); toast('Treino atualizado');
+  },
+  toRun: () => { closeModal(); stack = [{n: 'home'}]; view = {n: 'run'}; render(); window.scrollTo(0, 0); },
   qEdit: d => {
     const e = run.exs[+d.i], s = e.sets[+d.j], f = d.f;
     if (f === 'secs') return H.editSet(d);
@@ -2314,7 +2487,7 @@ const H = {
   delCustom: d => { S.customEx = S.customEx.filter(x => x.id !== d.id); S.routines.forEach(r => r.workouts.forEach(w => { w.exercises = w.exercises.filter(x => x.exId !== d.id); })); persist(); closeModal(); render(); toast('Exercício excluído'); },
   tagTog: d => { const el = $('#pq'); if (!el) return; let toks = el.value.split(/\s+/).filter(Boolean); const t = d.t; if (toks.some(x => normTxt(x) === normTxt(t))) toks = toks.filter(x => normTxt(x) !== normTxt(t)); else toks.push(t); el.value = toks.join(' '); $('#plist').innerHTML = pickList(el.value); $('#ptags').innerHTML = tagsHtml(el.value); },
   tagClear: () => { S.searchTags = []; persist(); const tg = $('#ptags'); if (tg) tg.innerHTML = ''; },
-  togWarm: d => { const st = run.exs[+d.i].sets[+d.j]; st.warm = !st.warm; persistRun(); render(); },
+  togWarm: d => { const st = run.exs[+d.i].sets[+d.j]; st.warm = !st.warm; if (!st.warm && st.rir == null) st.rir = S.settings.defaultRir; persistRun(); render(); },
   seWarm: d => { syncDraft(); const st = draft.exercises[+d.i].sets[+d.j]; st.warm = !st.warm; render(); },
   openS: d => { const s = sessions.find(x => x.id === d.id); modal(`<h2>${esc(s.name)}</h2><p class="muted" style="margin:0">${fmtDate(s.date)} · ${longT(s.durMs)} · ${s.kcal} kcal</p>${s.exercises.map(e => `<div><b>${esc(exLabel(e))}</b>${e.sets.filter(x => x.done).map((x, i) => `<div class="muted small num">${i + 1}. ${x.secs != null && x.reps == null ? x.secs + ' s' : fmtN(x.reps) + ' reps · ' + fmtN(x.kg) + ' kg (' + r1(x.kg * LB) + ' lb)'}</div>`).join('') || '<div class="muted small">Sem séries concluídas</div>'}${e.note ? `<div class="small">Nota: ${esc(e.note)}</div>` : ''}</div>`).join('')}<button class="btn block" data-act="txtS" data-id="${s.id}">Exportar em texto (.txt)</button><button class="btn block" data-act="editS" data-id="${s.id}">${ic('pencil')} Editar treino</button><button class="btn block danger" data-act="delSAsk" data-id="${s.id}">Excluir do histórico</button>`); },
   delSAsk: d => confirmBox('Excluir este treino do histórico?', 'Não dá para desfazer.', 'delS', {id: d.id}, 'Excluir'),
@@ -2329,6 +2502,7 @@ let editFor = null, editRunIdx = 0;
 function nextTargetFrom(i) { const n = run.exs.length; for (let o = 1; o < n; o++) { const k = (i + o) % n; if (run.exs[k].skipped) continue; const j = run.exs[k].sets.findIndex(s => !s.done); if (j >= 0) return [k, j]; } return null; }
 document.addEventListener('click', e => { const el = e.target.closest('[data-act]'); if (!el) return; const f = H[el.dataset.act]; if (f) { if (el.dataset.act !== 'scrim' || e.target === el) f(el.dataset, el, e); } });
 const CH = {
+  pickEqSel(el) { pickEq = el.value; const l = $('#plist'); if (l) l.innerHTML = pickList(val('pq')); },
   setTheme(el) { S.settings.theme = el.value; persist(); applyTheme(); },
   tInh(el) { const b = document.getElementById(el.dataset.p + '_tbox'); if (b) b.hidden = el.checked; },
   tCh(el) { tRefresh(el.dataset.p); },
@@ -2347,6 +2521,7 @@ document.addEventListener('change', e => { const el = e.target, f = el.dataset &
 document.addEventListener('change', e => { const el = e.target; if (el && el.dataset && el.dataset.cu) { const g = el.closest('.cvg'); if (g) { conv(el, g); if (el.dataset.cu === 'm' && g.dataset.canon) el.value = fmtU(+g.dataset.canon, 'm'); } } });
 document.addEventListener('input', e => {
   const el = e.target;
+  if (el.dataset && el.dataset.lk) { const pr = document.getElementById(el.dataset.pair), v = el.value.trim() === '' ? null : num(el.value); const kgEl = el.dataset.lk === 'kg' ? el : pr; if (kgEl) kgEl.dataset.canon = v == null ? '' : String(el.dataset.lk === 'kg' ? v : v / LB); if (pr) pr.value = v == null ? '' : (el.dataset.lk === 'kg' ? f1(v * LB) : fmtN(r1(v / LB))); return; }
   if (el.id === 'pq') { const l = $('#plist'); if (l) l.innerHTML = pickList(el.value); const tg = $('#ptags'); if (tg) tg.innerHTML = tagsHtml(el.value); return; }
   if (!el.dataset || !el.dataset.cu) return;
   const g = el.closest('.cvg'); if (g) conv(el, g);
@@ -2444,7 +2619,7 @@ if (!inClaude() && navigator.storage && navigator.storage.persist) navigator.sto
 </script>
 
 <script>
-if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202610242040').catch(() => {});
+if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202610260451').catch(() => {});
 </script>
 </body>
 </html>
