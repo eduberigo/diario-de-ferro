@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12161b">
-<script>window.FERRO_BUILD = '202610261712';</script>
+<script>window.FERRO_BUILD = '202610262053';</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -704,6 +704,7 @@ async function runBackup(user) {
       pend.backup = null; S.settings.lastDrive = new Date().toISOString(); savePend(); persist();
       toast('Backup salvo no Drive'); return true;
     } catch (e) {
+      if (!user && e && e.code === 'NEEDS_CONSENT' && document.visibilityState === 'visible' && !runBackup.asked) { runBackup.asked = true; return runBackup(true); }
       if (!user && e && e.code === 'NEEDS_CONSENT') { b.msg = 'Falta autorizar o Google Drive: toque em Tentar agora.'; savePend(); return false; }
       try { await gdCreate(b.name, JSON.stringify(backupObj()), !!user); pend.backup = null; S.settings.lastDrive = new Date().toISOString(); savePend(); persist(); toast('Backup salvo no Drive'); return true; } catch (e2) { b.msg = gErrMsg(e2); savePend(); if (user) toast(b.msg); return false; }
     }
@@ -2659,7 +2660,7 @@ if (!inClaude() && navigator.storage && navigator.storage.persist) navigator.sto
 </script>
 
 <script>
-if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202610261712').catch(() => {});
+if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202610262053').catch(() => {});
 </script>
 </body>
 </html>

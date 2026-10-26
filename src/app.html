@@ -691,6 +691,7 @@ async function runBackup(user) {
       pend.backup = null; S.settings.lastDrive = new Date().toISOString(); savePend(); persist();
       toast('Backup salvo no Drive'); return true;
     } catch (e) {
+      if (!user && e && e.code === 'NEEDS_CONSENT' && document.visibilityState === 'visible' && !runBackup.asked) { runBackup.asked = true; return runBackup(true); }
       if (!user && e && e.code === 'NEEDS_CONSENT') { b.msg = 'Falta autorizar o Google Drive: toque em Tentar agora.'; savePend(); return false; }
       try { await gdCreate(b.name, JSON.stringify(backupObj()), !!user); pend.backup = null; S.settings.lastDrive = new Date().toISOString(); savePend(); persist(); toast('Backup salvo no Drive'); return true; } catch (e2) { b.msg = gErrMsg(e2); savePend(); if (user) toast(b.msg); return false; }
     }
