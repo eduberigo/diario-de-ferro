@@ -1835,8 +1835,13 @@ function natInit() {
 }
 /* abaixa a música só enquanto o som do app toca e devolve o volume em seguida (foco de áudio do Android) */
 function natDuck(ms) { const fn = natP('FerroNotif'); if (fn && fn.duck) try { fn.duck({ms: Math.round(Math.max(600, Math.min(30000, ms)))}); } catch (e) {} }
-function natAct(id) {
+function natAct(raw) {
   if (!run || run.phase === 'done') return;
+  const [id, stamp] = String(raw || '').split(':');
+  if (id === 'tick') { runDue(); natLast = ''; clearTimeout(natT); natPush(); if (view.n === 'run') render(); return; }
+  runDue();   // põe o treino em dia antes de obedecer ao toque
+  // o toque foi numa notificação atrasada (a fase já mudou sozinha): não aplica, só atualiza, para não pular nem reabrir série sem querer
+  if (stamp && +stamp !== run.phaseStart && (id === 'next' || id === 'back')) { natLast = ''; clearTimeout(natT); natPush(); if (view.n === 'run') render(); return; }
   if (id === 'next') runNext(); else if (id === 'back') runBack(); else if (id === 'pause') H.pauseBtn(); else if (id === 'plus') H.restPlus();
   natLast = ''; clearTimeout(natT); natPush(); if (view.n === 'run') render();
 }
@@ -1854,6 +1859,7 @@ function natPayload() {
     : P === 'exec' ? [A.back, A.pause, {id: 'next', label: 'Feito', icon: 'check', primary: true}]
     : P === 'prepare' ? [A.back, A.pause, {id: 'next', label: 'Começar', icon: 'play', primary: true}]
     : [A.pause, {id: 'next', label: 'Começar', icon: 'play', primary: true}];
+  actions.forEach(a => { if (a.id === 'next' || a.id === 'back') a.id += ':' + run.phaseStart; });
   const o = {label, color: NCOL[pz ? 'paused' : P] || '#F0654D', title: exLabel(ex), line1: `${cap1(setNo(ex, run.setIdx).txt)}  ·  ${load}`, line2, actions};
   if (v.count) { o.chrono = 'down'; if (pz) o.shownMs = Math.max(0, v.rem); else o.endAt = Math.round((Date.now() + v.rem) / 1000) * 1000; }
   else { o.chrono = 'up'; if (pz) o.shownMs = v.el; else o.startAt = run.phaseStart; }
@@ -2058,7 +2064,7 @@ function runNext() {
     run.exIdx = t[0]; run.setIdx = t[1];
     run.exs[t[0]].restFrom = restFor;
     setPhase('rest'); run.restTotal = restFor * 1000;
-  } else if (ph === 'rest') setPhase(prepPh());
+  } else if (ph === 'rest') { const used = elapsed(), tot = run.restTotal; setPhase(prepPh()); if (run.prevPtr) run.lastRest = {left: Math.max(0, tot - used), ptr: run.prevPtr.join(',')}; }
   persistRun(); render();
 }
 function abortExec() { if (run.phase !== 'exec') return; const el = elapsed(); run.tot.rest += el; run.phaseStart = Date.now(); if (run.pausedAt) run.pausedAt = Date.now(); }
@@ -2066,6 +2072,9 @@ function runBack() {
   if (!run) return;
   abortExec();
   if (run.phase === 'exec' && prepPh() === 'prepare') { setPhase('prepare'); persistRun(); render(); }
+  else if ((run.phase === 'prepare' || (run.phase === 'exec' && prepPh() !== 'prepare')) && run.prevPtr && run.lastRest && run.lastRest.ptr === run.prevPtr.join(',') && !curEx().sets[run.setIdx].done) {
+    const left = Math.max(10000, run.lastRest.left); run.lastRest = null; setPhase('rest'); run.restTotal = left; persistRun(); render(); toast('De volta ao descanso');
+  }
   else if (run.phase === 'rest' && run.prevPtr) { const [i, j] = run.prevPtr; run.exIdx = i; run.setIdx = j; run.exs[i].sets[j].done = false; run.prevPtr = null; run.sndDone = true; setPhase('exec'); persistRun(); render(); toast('Série reaberta'); }
   else if (run.phase === 'prepare' || run.phase === 'exec') {
     const pv = prevDone();
@@ -2356,16 +2365,24 @@ function tickSheet() {
   if (big) big.textContent = v.count ? (v.P === 'prepare' ? pad(Math.ceil(v.rem / 1000)) : mmss(Math.ceil(v.rem / 1000) * 1000)) : mmss(v.el);
   if (bar) bar.style.width = Math.round(v.prog * 100) + '%';
 }
+/* fase com tempo vencido (descanso, preparo, série por tempo): avança. Com o app em segundo plano o relógio da página
+   pode atrasar ou parar; o alarme nativo e os toques na notificação chamam isto para o treino nunca ficar para trás */
+function runDue() {
+  if (!run || run.phase === 'done' || run.pausedAt) return false;
+  const v = phaseView();
+  if (!(v.count && v.rem <= 0 && run.fired !== run.phaseStart)) return false;
+  run.fired = run.phaseStart;
+  const quiet = NAT && document.visibilityState === 'hidden';   // em segundo plano quem toca é o alarme nativo
+  if (!quiet) { if (v.P === 'prepare') { startSound(); run.sndDone = true; } else { beep(v.P === 'rest' ? 3 : 2); if (v.P === 'rest') buzz(); } if (v.P === 'exec') buzz(); }
+  else if (v.P === 'prepare') run.sndDone = true;
+  if (S.settings.continuous) { runNext(); return true; }
+  return false;
+}
 setInterval(() => {
   if (!run || run.phase === 'done' || run.pausedAt) return;
   const v = phaseView();
-  if (v.P === 'prepare' && v.count) { const sl = Math.ceil(v.rem / 1000), key = run.phaseStart + ':' + sl; if (sl >= 1 && sl <= S.settings.countFrom && run.lastCount !== key) { run.lastCount = key; countSnd(sl); } }
-  if (v.count && v.rem <= 0 && run.fired !== run.phaseStart) {
-    run.fired = run.phaseStart;
-    if (v.P === 'prepare') { startSound(); run.sndDone = true; } else { beep(v.P === 'rest' ? 3 : 2); if (v.P === 'rest') buzz(); }
-    if (v.P === 'exec') buzz();
-    if (S.settings.continuous) { runNext(); return; }
-  }
+  if (v.P === 'prepare' && v.count && !(NAT && document.visibilityState === 'hidden')) { const sl = Math.ceil(v.rem / 1000), key = run.phaseStart + ':' + sl; if (sl >= 1 && sl <= S.settings.countFrom && run.lastCount !== key) { run.lastCount = key; countSnd(sl); } }
+  if (runDue()) { if (NAT) { natLast = ''; natPush(); } return; }
   if (view.n !== 'run') { const mt = $('#mrt'); if (mt) mt.textContent = miniTxt().t; }
   if (view.n === 'run') tickSheet(); else if (view.n === 'runstats') { const b = $('#statsBody'); if (b) b.innerHTML = statsBody(runStats()); }
 }, 250);
