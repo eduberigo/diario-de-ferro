@@ -95,6 +95,7 @@ body.hasmini .fab{bottom:calc(150px + env(safe-area-inset-bottom,0px))}body.hasm
 /* run */
 .runhead{display:flex;justify-content:space-between;align-items:center;padding:14px 0 6px}
 .runhead.rh2{position:sticky;top:0;z-index:30;gap:10px;background:var(--bg);margin:0 -16px;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 8px;border-bottom:1px solid var(--line)}
+.peekbtn{display:block;margin:6px auto 0;background:none;border:1px solid var(--ph,var(--accent));color:var(--ph,var(--accent));border-radius:999px;padding:6px 14px;font:600 13px var(--body)}
 .rht{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center;line-height:1.25}.rht span{font:500 12px var(--body);color:var(--muted);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rht b{font-size:15px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pillbtn{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-weight:600}
 .exhead{display:flex;gap:14px;align-items:center;margin:10px 0 12px}
@@ -1949,7 +1950,9 @@ function setNo(e, j) {
   const f = x => !x.warm && !x.kind; return {sn: String(upto(f)), txt: `série ${upto(f)} de ${all(f)}`};
 }
 /* durante o descanso depois do último set, a tela continua no exercício que acabou até o descanso terminar */
-const viewIdx = () => (run && run.phase === 'rest' && run.prevPtr && run.prevPtr[0] !== run.exIdx && run.exs[run.prevPtr[0]]) ? run.prevPtr[0] : run.exIdx;
+const restSplit = () => !!(run && run.phase === 'rest' && run.prevPtr && run.prevPtr[0] !== run.exIdx && run.exs[run.prevPtr[0]]);
+/* no descanso entre exercícios a tela fica no que terminou; "Ver o próximo" mostra o seguinte sem mexer no cronômetro */
+const viewIdx = () => restSplit() && !run.peek ? run.prevPtr[0] : run.exIdx;
 const viewEx = () => run.exs[viewIdx()];
 const techLab = e => { const t = (e && ((e.cfg && e.cfg.tech) || e.tech)) || 'normal'; return t === 'normal' ? '' : ((TECH.find(x => x[0] === t) || [])[1] || ''); };
 const sum = o => Object.values(o).reduce((a, b) => a + b, 0);
@@ -1994,7 +1997,7 @@ function setPhase(p) {
   const prev = run.phase; run.phase = p; run.phaseStart = Date.now(); run.pausedAt = null; run.fired = 0; if (p !== 'prepare') run.prepOv = null;
   if (p === 'exec' && prev !== 'exec' && !run.sndDone) startSound();
   if (p === 'prepare' && S.settings.sound && S.settings.countMode !== 'off' && audio) { try { ac(); holdAudio(curPrep() * 1000 + 3500); } catch (e) {} }
-  run.sndDone = false;
+  run.sndDone = false; run.peek = false;
   if (p === 'rest') run.restTotal = (curEx() ? curEx().rest : S.settings.defaultRest) * 1000;
   persistRun();
 }
@@ -2090,7 +2093,7 @@ function sheetHtml() {
   const v = phaseView(), P = v.P;
   const label = {warmup: 'Aquecimento', prepare: 'Prepare-se!', exec: v.ex.type === 'time' ? 'Segure a posição' : 'Faça o exercício', rest: 'Descanso'}[P];
   const timeBlock = v.count
-    ? `<span class="big num" id="pbig">${P === 'prepare' ? pad(Math.ceil(v.rem / 1000)) : mmss(Math.ceil(v.rem / 1000) * 1000)}</span><span class="cap"><i class="dot"></i>${label}${P === 'rest' ? ` · próxima: ${esc(curEx().name)}` : ''}</span>`
+    ? `<span class="big num" id="pbig">${P === 'prepare' ? pad(Math.ceil(v.rem / 1000)) : mmss(Math.ceil(v.rem / 1000) * 1000)}</span><span class="cap"><i class="dot"></i>${label}${P === 'rest' ? ` · próxima: ${esc(curEx().name)}` : ''}</span>${restSplit() ? `<button class="peekbtn" data-act="peekNext">${run.peek ? '← Voltar ao exercício que terminou' : 'Ver o próximo exercício →'}</button>` : ''}`
     : `<span class="tt">Vamos lá!</span><span class="cap"><i class="dot"></i>${label} <b class="num" id="pbig">${mmss(v.el)}</b></span>`;
   const back = (P === 'exec' || P === 'prepare' || P === 'rest') ? `<button class="btn ghost back" data-act="rbackBtn">Voltar</button>` : '';
   const extra = P === 'rest' ? `<button class="ibsq" data-act="restPlus" aria-label="Mais 15 segundos"><b class="disp">+15</b></button>` : '';
@@ -2124,7 +2127,7 @@ function runView() {
     return `<div class="exrow" data-drag="r" data-i="${i}">${run.reorder ? '' : ''}${left}${right}</div>`;
   }).join('');
   return `<div class="runhead rh2"><button class="ib" data-act="closeRun" aria-label="Encerrar treino">${ic('x')}</button><div class="rht"><span>${esc([run.routine, run.name].filter(Boolean).join(' · '))}</span><b>${esc(exLabel(ex))}</b></div><button class="pillbtn" data-act="runStats">Estatísticas</button></div>
-  <div class="lbl">Exercício ${vi + 1}/${run.exs.length}</div>
+  <div class="lbl">Exercício ${vi + 1}/${run.exs.length}${restSplit() && run.peek ? ' · próximo, depois do descanso' : ''}</div>
   <div class="exhead">${tileOf(getEx(ex.exId)).replace('tile sm', 'tile')}<div class="t" data-act="openEx" data-id="${ex.exId}" data-vk="${esc(vkey(ex))}" style="cursor:pointer"><b style="text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:4px">${esc(exLabel(ex))}</b><span class="muted">${esc(ex.primary.concat(ex.secondary).join(', '))}</span>${techLab(ex) ? `<span class="techtag">${esc(techLab(ex))}</span>` : ''}</div></div>${ex.type !== 'time' ? `<button class="tempobar" data-act="runTempo">Cadência <b class="num">${ex.tempo || S.settings.tempo}</b> · ${tSec(ex.tempo || S.settings.tempo)} s por repetição <span style="margin-left:auto;color:var(--accent)">alterar</span></button>` : ''}
   <div class="acts"><button class="btn sm" data-act="subEx" data-i="${vi}">${ic('swap')} Substituir</button><button class="btn sm" data-act="noteEx">${ic('note')} ${ex.note ? 'Nota ✓' : 'Nota'}</button></div>
   ${run.warm && vi === 0 ? `<div class="warm ${run.phase === 'warmup' ? 'on' : ''}"><b>${ic('dumb').replace('<svg', '<svg ' + small)} Aquecimento</b><span class="muted small">Repetições livres • Carga leve</span></div>` : ''}
@@ -2482,6 +2485,7 @@ const H = {
   rCol: d => { const r = S.routines.find(x => x.id === d.id); if (!r) return; r.collapsed = !r.collapsed; persist(); render(); },
   pEdit: () => openPlanEditor(view.id),
   sumPlan: () => { if (run && findW(run.workoutId)) openPlanEditor(run.workoutId, run); },
+  peekNext: () => { if (!restSplit()) return; run.peek = !run.peek; persistRun(); render(); window.scrollTo(0, 0); },
   resumeRun: () => {
     if (!run || run.phase !== 'done') return;
     run.endedAt = null; run.prevPtr = null;
