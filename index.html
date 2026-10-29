@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12161b">
-<script>window.FERRO_BUILD = '202610271751';</script>
+<script>window.FERRO_BUILD = '202610290132';</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -286,6 +286,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .wtag{flex:none;border:1.5px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700;color:var(--muted)}
 .wtag.on{border-color:var(--warmup);color:var(--warmup)}
 .setline.wset .setcard{border-style:dashed}
+.techtag{display:table;margin-top:6px;padding:2px 10px;border:1px solid var(--accent);border-radius:999px;color:var(--accent);font:600 12px var(--body)}
+.sn.snw{font-size:13px;letter-spacing:-.02em}
 .swrap{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
 .swrap:last-child{border-bottom:0}.card>.swrap:first-child{border-radius:14px 14px 0 0}.card>.swrap:last-child{border-radius:0 0 14px 14px}.card>.swrap:only-child{border-radius:14px}
 .swrap .wrow{position:relative;z-index:1;background:var(--surface);border-bottom:0;padding-right:52px;transition:transform .18s ease;touch-action:pan-y}
@@ -1139,7 +1141,7 @@ function homeView() {
   const l7 = last7();
   const sec7 = `<div class="sec"><h2>Últimos 7 dias</h2><div class="lbl" style="margin-bottom:6px">Séries por exercício</div>${l7.length ? `<div class="card">${l7.map(x => `<div class="g7"><span>${esc(x.name)}<br><span class="muted small">${esc(x.days.slice().reverse().join(' · '))}</span></span><span class="muted num">${x.cardio ? fmtMin(x.secs) + ' min' : x.sets + ' séries'}</span><b class="num">${x.vol ? kgLb(x.vol) : '—'}</b></div>`).join('')}</div>` : '<div class="card empty">Nenhum treino salvo nos últimos 7 dias.</div>'}</div>`;
   const pb = pend.backup ? `<div class="card" style="padding:12px 14px;margin-top:12px;display:flex;gap:10px;align-items:center"><span style="flex:1"><b>Backup pendente</b><br><span class="muted small">${esc(pend.backup.msg || 'Aguardando rede.')}</span></span><button class="btn sm" data-act="bkNow">Tentar agora</button><button class="ib" data-act="bkCancel" aria-label="Cancelar backup">${ic('x')}</button></div>` : '';
-  return `<div class="top"><h1>Diário de Ferro</h1></div>${banner}${pb}${rs || '<div class="empty">Crie sua primeira rotina.</div>'}<div class="sec"><button class="btn ghost block" data-act="newRoutine">${ic('plus')} Nova rotina</button></div>${sec7}`;
+  return `<div class="top"><h1>Diário de Ferro</h1></div>${banner}${pb}${rs || '<div class="empty">Crie sua primeira rotina.</div>'}<div class="sec" style="display:flex;gap:10px"><button class="btn ghost" style="flex:1" data-act="newRoutine">${ic('plus')} Nova rotina</button><button class="btn ghost" style="flex:1" data-act="rtImpOpen">Importar rotina</button></div>${sec7}`;
 }
 function workoutView() {
   const f = findW(view.id); if (!f) return '<div class="empty">Treino não encontrado.</div>';
@@ -1253,6 +1255,8 @@ function settingsView() {
   <div class="card" style="margin-top:10px"><div class="set"><div class="t"><b>Arquivo no aparelho</b><span class="muted small">Baixa um arquivo .json que você pode guardar onde quiser.</span></div></div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;padding:0 14px 14px"><button class="btn sm" data-act="fileSave">${inClaude() ? 'Baixar arquivo' : 'Baixar / compartilhar arquivo'}</button><label class="btn sm" for="impfile" style="cursor:pointer">Restaurar arquivo</label><input type="file" id="impfile" accept="application/json,.json" hidden data-act-change="impFile"></div></div>
   <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap"><button class="btn sm" data-act="exportData">Copiar como texto</button><button class="btn sm" data-act="importData">Colar texto</button></div>
+  <div class="card" style="margin-top:12px"><div class="set"><div class="t"><b>Rotinas prontas</b><span class="muted small">Importa rotinas de um arquivo .json (ou texto colado) sem apagar nada. Para gerar o arquivo de uma rotina, use o menu ⋯ dela.</span></div></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;padding:0 14px 14px"><button class="btn sm" data-act="rtImpOpen">Importar rotina</button><button class="btn sm" data-act="rtExpAll">Exportar todas (.json)</button></div></div>
   <p class="muted small">Os treinos ficam salvos neste navegador e, quando disponível, também na sua conta.</p></div>
   <p class="muted small num" id="verinfo" style="text-align:center;margin:20px 0 4px">${verText()}</p>`;
 }
@@ -1369,6 +1373,69 @@ async function shareFile(name, text, type) {
 }
 const backupObj = () => ({app: 'ferro', v: 2, savedAt: new Date().toISOString(), state: S, sessions});
 const backupName = () => 'diario-de-ferro-backup-' + dkey(new Date()) + '.json';
+/* rotinas prontas: importa só rotinas (e notas), sem tocar em ajustes, corpo, academia ou histórico */
+function routinePack(rs) {
+  const ids = new Set(rs.flatMap(r => r.workouts.flatMap(w => w.exercises.map(e => e.exId)))), notes = {};
+  ids.forEach(id => { if (S.exNotes[id]) notes[id] = S.exNotes[id]; });
+  const c = JSON.parse(JSON.stringify(rs)); c.forEach(r => { delete r.collapsed; delete r.touched; });
+  return {app: 'ferro', kind: 'routines', v: 1, routines: c, exNotes: notes};
+}
+let rtImp = null;
+function rtParse(txt) {
+  let o; try { o = JSON.parse(String(txt || '').replace(/^﻿/, '').trim()); } catch (e) { throw new Error('O texto não é um JSON válido. Confira se copiou o arquivo inteiro.'); }
+  if (!o || typeof o !== 'object' || o.app !== 'ferro') throw new Error('Este arquivo não é do Diário de Ferro ("app" precisa ser "ferro").');
+  if (o.kind !== 'routines') throw new Error(o.state ? 'Este arquivo é um backup completo. Para ele, use "Restaurar arquivo" em Ajustes.' : 'Este arquivo não é de rotinas ("kind" precisa ser "routines").');
+  if (!Array.isArray(o.routines) || !o.routines.length) throw new Error('O arquivo não tem nenhuma rotina.');
+  const rs = JSON.parse(JSON.stringify(o.routines)), miss = new Map(), n0 = v => Number.isFinite(+v) && v !== '' && v != null;
+  rs.forEach((r, ri) => {
+    if (!r || typeof r !== 'object' || !Array.isArray(r.workouts)) throw new Error(`A rotina ${ri + 1} não tem a lista de treinos ("workouts").`);
+    r.name = String(r.name || '').trim() || 'Rotina importada';
+    r.defaults = Object.assign({sets: 4, repsMin: 8, repsMax: 12, rest: 60}, r.defaults || {});
+    r.workouts.forEach((w, wi) => {
+      if (!w || typeof w !== 'object' || !Array.isArray(w.exercises)) throw new Error(`O treino ${wi + 1} de "${r.name}" não tem a lista de exercícios ("exercises").`);
+      w.name = String(w.name || '').trim() || 'Treino ' + (wi + 1);
+      w.exercises.forEach(e => {
+        if (!e || typeof e !== 'object' || !e.exId) { miss.set('(sem exId)', ''); return; }
+        const id0 = e.exId; migEx(e);
+        if (getEx(e.exId).name === 'Exercício removido') { miss.set(String(id0), e.name || ''); return; }
+        e.sets = Math.max(1, Math.round(+e.sets) || 3);
+        ['repsMin', 'repsMax', 'kgMin', 'kgMax'].forEach(k => { e[k] = n0(e[k]) ? Math.max(0, +e[k]) : (k === 'repsMin' ? 8 : k === 'repsMax' ? 12 : 0); });
+        if (e.repsMax < e.repsMin) e.repsMax = e.repsMin;
+        e.rest = n0(e.rest) ? Math.max(0, Math.round(+e.rest)) : S.settings.defaultRest;
+        e.secs = n0(e.secs) ? Math.max(1, Math.round(+e.secs)) : 30;
+        e.variant = e.variant || ''; e.grip = e.grip || '';
+        if (!Array.isArray(e.rir)) e.rir = [];
+        e.rir = Array.from({length: e.sets}, (_, k) => { const v = e.rir[Math.min(k, e.rir.length - 1)]; return n0(v) ? +v : S.settings.defaultRir; });
+      });
+    });
+  });
+  if (miss.size) throw new Error('Exercícios que não existem no app: ' + [...miss].map(([id, n]) => n ? `${n} (${id})` : id).join(', ') + '. Nada foi importado.');
+  const notes = {};
+  if (o.exNotes && typeof o.exNotes === 'object') Object.entries(o.exNotes).forEach(([id, t]) => { const k = {exId: id}; migEx(k); t = String(t ?? '').trim(); if (t) notes[k.exId] = notes[k.exId] ? notes[k.exId] + '\n' + t : t; });
+  return {rs, notes};
+}
+function rtImpModal(err) {
+  modal(`<h2>Importar rotina</h2><p class="muted small" style="margin:0">Soma rotinas prontas no topo da lista. Não mexe nas suas rotinas, nos ajustes, no corpo nem no histórico.</p>
+  <label class="btn block" for="rtfile" style="cursor:pointer;text-align:center">Escolher arquivo .json</label><input type="file" id="rtfile" accept="application/json,.json,text/plain,.txt" hidden data-act-change="rtFile">
+  <div class="field"><label class="lbl" for="rt_txt">Ou cole o texto</label><textarea id="rt_txt" style="min-height:120px" placeholder='{"app":"ferro","kind":"routines",...}'></textarea></div>
+  <p id="rt_err" class="small" style="margin:0;color:var(--danger)" role="alert">${esc(err || '')}</p><button class="btn primary block" data-act="rtPaste">Continuar</button>`);
+}
+function rtCheck(txt) {
+  try { rtImp = rtParse(txt); } catch (e) { rtImp = null; const el = document.getElementById('rt_err'); if (el) el.textContent = e.message; else rtImpModal(e.message); return; }
+  const n = rtImp.rs.length, nw = rtImp.rs.reduce((a, r) => a + r.workouts.length, 0), nn = Object.keys(rtImp.notes).length;
+  modal(`<h2>Importar ${n} rotina${n > 1 ? 's' : ''}?</h2><div class="card" style="padding:4px 14px">${rtImp.rs.map(r => `<div class="hset"><span style="flex:1"><b>${esc(r.name)}</b></span><span class="muted small num">${r.workouts.length} treino${r.workouts.length === 1 ? '' : 's'}</span></div>`).join('')}</div>
+  <p class="muted small" style="margin:0">${nw} treinos no total${nn ? ` · notas de ${nn} exercício${nn > 1 ? 's' : ''} (somadas às suas)` : ''}. As rotinas novas entram no topo; as que você já tem ficam recolhidas, sem nenhuma alteração.</p>
+  <div style="display:flex;gap:10px"><button class="btn" style="flex:1" data-act="closeModal">Cancelar</button><button class="btn primary" style="flex:1" data-act="rtDo">Importar</button></div>`);
+}
+function rtApply() {
+  if (!rtImp) return; const {rs, notes} = rtImp, t = Date.now(); rtImp = null;
+  rs.forEach((r, k) => { r.id = uid(); r.collapsed = false; r.touched = t + rs.length - k; r.workouts.forEach(w => { w.id = uid(); w.exercises.forEach(e => { e.id = uid(); }); }); });
+  S.routines.forEach(x => x.collapsed = true);
+  S.routines.unshift(...rs);
+  Object.entries(notes).forEach(([id, txt]) => { const cur = S.exNotes[id] || ''; if (!cur.includes(txt)) S.exNotes[id] = cur ? cur.replace(/\s+$/, '') + '\n\n' + txt : txt; });
+  norm(S); persist(); closeModal(); view = {n: 'home'}; render(); window.scrollTo(0, 0);
+  toast(`${rs.length} rotina${rs.length > 1 ? 's' : ''} importada${rs.length > 1 ? 's' : ''}`);
+}
 function importObj(o) {
   if (!o || o.app !== 'ferro' || !o.state) throw new Error('formato');
   S = o.state; norm(S);
@@ -1635,7 +1702,7 @@ function seditView() {
   </div>
   ${d.exercises.map((e, i) => { const l = getEx(e.exId), time = l.type === 'time'; return `<div class="card" style="padding:12px 14px;margin-top:14px"><div style="display:flex;align-items:center;gap:10px">${tileOf(l)}<b style="flex:1;min-width:0">${esc(exLabel(e))}</b><button class="ib" data-act="seDelEx" data-i="${i}" aria-label="Remover exercício">${ic('x')}</button></div>
     <div class="serow muted small" style="margin-top:10px"><span>#</span>${time ? '<span>Segundos</span><span></span><span></span><span></span><span></span>' : '<span>Reps</span><span>kg</span><span>lb</span><span>RIR</span><span>Tipo</span>'}<span></span></div>
-    ${e.sets.map((st, j) => `<div class="serow"><span class="sn" style="width:26px;height:26px;font-size:13px">${j + 1}</span>${time ? `<input type="number" inputmode="numeric" id="se_s_${i}_${j}" value="${st.secs ?? 30}" aria-label="Segundos"><span></span><span></span><span></span><span></span>` : `<input type="number" inputmode="numeric" id="se_r_${i}_${j}" value="${st.reps ?? ''}" aria-label="Repetições">${kgLbInputs('se_k_' + i + '_' + j, st.kg)}<select id="se_i_${i}_${j}" aria-label="RIR">${rirOpts(st.rir ?? S.settings.defaultRir)}</select><button class="wtag ${st.warm ? 'on' : ''}" data-act="seWarm" data-i="${i}" data-j="${j}" aria-pressed="${!!st.warm}">${st.warm ? 'Aquec.' : 'Válida'}</button>`}<button class="ib" data-act="seDelSet" data-i="${i}" data-j="${j}" aria-label="Remover série">${ic('x')}</button></div>`).join('')}
+    ${e.sets.map((st, j) => `<div class="serow"><span class="sn" style="width:26px;height:26px;font-size:13px">${setNo(e, j).sn}</span>${time ? `<input type="number" inputmode="numeric" id="se_s_${i}_${j}" value="${st.secs ?? 30}" aria-label="Segundos"><span></span><span></span><span></span><span></span>` : `<input type="number" inputmode="numeric" id="se_r_${i}_${j}" value="${st.reps ?? ''}" aria-label="Repetições">${kgLbInputs('se_k_' + i + '_' + j, st.kg)}<select id="se_i_${i}_${j}" aria-label="RIR">${rirOpts(st.rir ?? S.settings.defaultRir)}</select><button class="wtag ${st.warm ? 'on' : ''}" data-act="seWarm" data-i="${i}" data-j="${j}" aria-pressed="${!!st.warm}">${st.warm ? 'Aquec.' : 'Válida'}</button>`}<button class="ib" data-act="seDelSet" data-i="${i}" data-j="${j}" aria-label="Remover série">${ic('x')}</button></div>`).join('')}
     <button class="addset" data-act="seAddSet" data-i="${i}">+ Série</button></div>`; }).join('')}
   <button class="btn block" style="margin-top:14px" data-act="seAddEx">${ic('plus')} Adicionar exercício</button>
   <div style="display:flex;flex-direction:column;gap:10px;margin-top:18px"><button class="btn primary block" data-act="seSave">Salvar</button>${d._new ? '' : '<button class="btn block danger" data-act="seDelAsk">Excluir treino</button>'}</div>`;
@@ -1743,7 +1810,7 @@ function mediaUpdate() {
   if (!run || run.phase === 'done') { try { mAudio.pause(); navigator.mediaSession.metadata = null; } catch (e) {} return; }
   try {
     const ex = curEx(), st = ex.sets[run.setIdx], ph = {warmup: 'Aquecimento', prepare: 'Prepare-se', exec: 'Executando', rest: 'Descanso'}[run.phase];
-    const title = `${ph} · série ${run.setIdx + 1}/${ex.sets.length}`;
+    const title = `${ph} · ${setNo(ex, run.setIdx).txt}`;
     const artist = exLabel(ex) + ' — ' + (ex.type === 'time' ? st.secs + ' s' : `${fmtN(st.reps)} reps · ${fmtN(st.kg)} kg (${f1(st.kg * LB)} lb)`);
     if (title + artist !== mLast) { mLast = title + artist; navigator.mediaSession.metadata = new MediaMetadata({title, artist, album: 'Diário de Ferro'}); }
     navigator.mediaSession.playbackState = run.pausedAt ? 'paused' : 'playing';
@@ -1792,7 +1859,7 @@ function natPayload() {
     : P === 'exec' ? [A.back, A.pause, {id: 'next', label: 'Feito', icon: 'check', primary: true}]
     : P === 'prepare' ? [A.back, A.pause, {id: 'next', label: 'Começar', icon: 'play', primary: true}]
     : [A.pause, {id: 'next', label: 'Começar', icon: 'play', primary: true}];
-  const o = {label, color: NCOL[pz ? 'paused' : P] || '#F0654D', title: exLabel(ex), line1: `Série ${run.setIdx + 1} de ${ex.sets.length}  ·  ${load}`, line2, actions};
+  const o = {label, color: NCOL[pz ? 'paused' : P] || '#F0654D', title: exLabel(ex), line1: `${cap1(setNo(ex, run.setIdx).txt)}  ·  ${load}`, line2, actions};
   if (v.count) { o.chrono = 'down'; if (pz) o.shownMs = Math.max(0, v.rem); else o.endAt = Math.round((Date.now() + v.rem) / 1000) * 1000; }
   else { o.chrono = 'up'; if (pz) o.shownMs = v.el; else o.startAt = run.phaseStart; }
   o.paused = pz;
@@ -1824,7 +1891,7 @@ async function natPush() {
       const v = phaseView(), end = (!run.pausedAt && v.count) ? Date.now() + v.rem : 0;
       const hm = t => new Date(t).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit', second: '2-digit'});
       const title = `${run.pausedAt ? 'Pausado · ' : ''}${ph} · ${exLabel(ex)}`;
-      const body = `Série ${run.setIdx + 1}/${ex.sets.length} · ${ex.type === 'time' ? st.secs + ' s' : `${fmtN(st.reps)} reps · ${fmtN(st.kg)} kg (${f1(st.kg * LB)} lb) · RIR ${st.rir ?? S.settings.defaultRir}`}${end && run.phase !== 'exec' ? ` · termina às ${hm(end)}` : ''}${ex.tempo && run.phase === 'exec' ? ` · cadência ${ex.tempo}` : ''}`;
+      const body = `${cap1(setNo(ex, run.setIdx).txt)} · ${ex.type === 'time' ? st.secs + ' s' : `${fmtN(st.reps)} reps · ${fmtN(st.kg)} kg (${f1(st.kg * LB)} lb) · RIR ${st.rir ?? S.settings.defaultRir}`}${end && run.phase !== 'exec' ? ` · termina às ${hm(end)}` : ''}${ex.tempo && run.phase === 'exec' ? ` · cadência ${ex.tempo}` : ''}`;
       const type = run.pausedAt ? 'paused' : run.phase === 'rest' ? 'rest' : run.phase === 'exec' ? 'exec' : 'prep';
       const key = title + '|' + body + '|' + type;
       if (key !== natLast) {
@@ -1846,13 +1913,13 @@ async function natAlarmSync(end) {
     try {
       if (!want) { await fn.cancelAlarm(); return; }
       const ex = curEx();
-      await fn.alarm({at: want, title: run.phase === 'rest' ? 'Fim do descanso' : run.phase === 'prepare' ? 'Começar a série' : 'Tempo da série terminou', body: `${exLabel(ex)} · série ${run.setIdx + 1} de ${ex.sets.length}`, sound: run.phase === 'prepare' ? 'bell' : 'beep3'});
+      await fn.alarm({at: want, title: run.phase === 'rest' ? 'Fim do descanso' : run.phase === 'prepare' ? 'Começar a série' : 'Tempo da série terminou', body: `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`, sound: run.phase === 'prepare' ? 'bell' : 'beep3'});
     } catch (e) {}
     return;
   }
   try {
     await ln.cancel({notifications: [{id: 2}]}); try { await ln.removeDeliveredNotifications({notifications: [{id: 2}]}); } catch (e) {}
-    if (want) { const ex = curEx(); await ln.schedule({notifications: [{id: 2, title: run.phase === 'rest' ? 'Fim do descanso' : run.phase === 'prepare' ? 'Começar a série' : 'Tempo da série terminou', body: `${exLabel(ex)} · série ${run.setIdx + 1}/${ex.sets.length}`, channelId: 'ferro-alarme', smallIcon: 'ic_stat_ferro', iconColor: '#e8553a', schedule: {at: new Date(want), allowWhileIdle: true}}]}); }
+    if (want) { const ex = curEx(); await ln.schedule({notifications: [{id: 2, title: run.phase === 'rest' ? 'Fim do descanso' : run.phase === 'prepare' ? 'Começar a série' : 'Tempo da série terminou', body: `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`, channelId: 'ferro-alarme', smallIcon: 'ic_stat_ferro', iconColor: '#e8553a', schedule: {at: new Date(want), allowWhileIdle: true}}]}); }
   } catch (e) {}
 }
 document.addEventListener('visibilitychange', () => { if (NAT && document.visibilityState === 'visible') natClearAlert(); if (NAT && run && run.phase !== 'done') { const v = phaseView(); natAlarmSync((!run.pausedAt && v.count) ? Date.now() + v.rem : 0); } });
@@ -1879,6 +1946,18 @@ async function natShare(name, text) {
 
 /* ---------- execução do treino ---------- */
 const curEx = () => run.exs[run.exIdx];
+/* rótulo da série: aquecimentos A1, A2…; séries válidas contam de 1 a N; drop e rest-pause D1/R1 */
+function setNo(e, j) {
+  const st = e.sets[j]; if (!st) return {sn: String(j + 1), txt: 'série ' + (j + 1)};
+  const upto = f => e.sets.slice(0, j + 1).filter(f).length, all = f => e.sets.filter(f).length;
+  if (st.warm) return {sn: 'A' + upto(x => x.warm), txt: `aquecimento ${upto(x => x.warm)} de ${all(x => x.warm)}`};
+  if (st.kind) return {sn: (st.kind === 'drop' ? 'D' : 'R') + (st.kn || 1), txt: (st.kind === 'drop' ? 'drop ' : 'rest-pause ') + (st.kn || 1)};
+  const f = x => !x.warm && !x.kind; return {sn: String(upto(f)), txt: `série ${upto(f)} de ${all(f)}`};
+}
+/* durante o descanso depois do último set, a tela continua no exercício que acabou até o descanso terminar */
+const viewIdx = () => (run && run.phase === 'rest' && run.prevPtr && run.prevPtr[0] !== run.exIdx && run.exs[run.prevPtr[0]]) ? run.prevPtr[0] : run.exIdx;
+const viewEx = () => run.exs[viewIdx()];
+const techLab = e => { const t = (e && ((e.cfg && e.cfg.tech) || e.tech)) || 'normal'; return t === 'normal' ? '' : ((TECH.find(x => x[0] === t) || [])[1] || ''); };
 const sum = o => Object.values(o).reduce((a, b) => a + b, 0);
 const elapsed = () => Math.max(0, (run.pausedAt || Date.now()) - run.phaseStart);
 function curTot() { const t = Object.assign({}, run.tot); if (t[run.phase] != null) t[run.phase] += elapsed(); return t; }
@@ -1937,23 +2016,34 @@ function shiftPtrs(i, at, by) {
   if (run.prevPtr && run.prevPtr[0] === i && run.prevPtr[1] >= at) run.prevPtr = [i, run.prevPtr[1] + by];
 }
 function warmKeep(i, j, wasWarm) {
-  const e = run.exs[i], st = e.sets[j]; if (!run || run.phase === 'done' || e.type === 'time' || !!st.warm === !!wasWarm) return;
+  const e = run && run.exs[i], st = e && e.sets[j]; if (!st || run.phase === 'done' || e.type === 'time' || !!st.warm === !!wasWarm) return;
   if (st.warm) {
-    let ins = e.sets.length; while (ins > 0 && e.sets[ins - 1].kind) ins--;   // antes do drop/rest-pause do último set
-    const plain = e.sets.filter((x, k) => k !== j && !x.warm && !x.kind), tpl = plain[plain.length - 1] || st;
-    const ns = Object.assign({}, tpl, {done: false, actual: undefined, warm: false, kind: '', kn: 0, auto: true});
-    if (ns.rir == null) ns.rir = S.settings.defaultRir;
-    shiftPtrs(i, ins, 1);
-    e.sets.splice(ins, 0, ns); toast('Série de trabalho adicionada');
+    if (st.done) {   // série já feita virou aquecimento: pergunta antes de somar
+      const nv = e.sets.filter((x, k) => k !== j && !x.warm && !x.kind).length + 1;
+      setTimeout(() => modal(`<h2>Manter o volume?</h2><p class="muted" style="margin:0">Esta série já foi feita e agora conta como aquecimento. Quer adicionar uma série de trabalho para manter ${nv} séries válidas?</p><div style="display:flex;gap:10px"><button class="btn" style="flex:1" data-act="closeModal">Não adicionar</button><button class="btn primary" style="flex:1" data-act="warmAdd" data-i="${i}" data-j="${j}">Adicionar série</button></div>`), 0);
+      return;
+    }
+    addWork(i, j);
   } else {
     let k = -1; e.sets.forEach((x, n) => { if (x.auto && !x.done && n !== j) k = n; });
     if (k < 0) return;
     e.sets.splice(k, 1);
     if (run.prevPtr && run.prevPtr[0] === i && run.prevPtr[1] === k) run.prevPtr = null;
-    if (run.exIdx === i && run.setIdx === k) { /* aponta para a próxima série que sobrou */ } else shiftPtrs(i, k + 1, -1);
+    if (!(run.exIdx === i && run.setIdx === k)) shiftPtrs(i, k + 1, -1);
     if (run.exIdx === i && run.setIdx >= e.sets.length) run.setIdx = e.sets.length - 1;
     toast('Série extra removida');
   }
+}
+function addWork(i, j) {
+  const e = run.exs[i], st = e && e.sets[j]; if (!st) return;
+  let ins = e.sets.length; while (ins > 0 && e.sets[ins - 1].kind) ins--;   // antes do drop/rest-pause do último set
+  const plain = e.sets.filter((x, k) => k !== j && !x.warm && !x.kind), tpl = plain[plain.length - 1] || st;
+  const ns = Object.assign({}, tpl, {done: false, actual: undefined, warm: false, kind: '', kn: 0, auto: true});
+  if (ns.rir == null) ns.rir = S.settings.defaultRir;
+  shiftPtrs(i, ins, 1);
+  e.sets.splice(ins, 0, ns); toast('Série de trabalho adicionada');
+  // no descanso depois do último set deste exercício, a série nova vem antes do próximo exercício
+  if (run.phase === 'rest' && run.prevPtr && run.prevPtr[0] === i && run.exIdx !== i) { run.exIdx = i; run.setIdx = ins; }
 }
 function runNext() {
   if (!run || run.phase === 'done') return;
@@ -2017,22 +2107,22 @@ function sheetHtml() {
 }
 function runView() {
   if (run.phase === 'done') return summaryView();
-  const ex = curEx(), nt = nextTargetFrom(run.exIdx), nxt = nt ? nt[0] : -1;
+  const vi = viewIdx(), ex = run.exs[vi], nt = vi !== run.exIdx ? [run.exIdx] : nextTargetFrom(run.exIdx), nxt = nt ? nt[0] : -1;
   const small = 'width="18" height="18" style="fill:none;stroke:currentColor;stroke-width:2"';
   const exL = Math.max(...ex.sets.map(x => Math.max(fmtN(x.kg).length, f1(x.kg * LB).length, fmtN(x.reps).length))), exFs = exL <= 3 ? 26 : exL === 4 ? 23 : exL === 5 ? 20 : 18;
   const sets = ex.sets.map((s, i) => {
-    const cls = (s.done ? 'done' : (i === run.setIdx ? 'cur' : '')) + (run.phase === 'rest' && run.prevPtr && run.prevPtr[0] === run.exIdx && run.prevPtr[1] === i ? ' beat' : '');
-    const qa = f => `class="qv" data-act="qEdit" data-i="${run.exIdx}" data-j="${i}" data-f="${f}"`;
+    const cls = (s.done ? 'done' : (vi === run.exIdx && i === run.setIdx ? 'cur' : '')) + (run.phase === 'rest' && run.prevPtr && run.prevPtr[0] === vi && run.prevPtr[1] === i ? ' beat' : '');
+    const qa = f => `class="qv" data-act="qEdit" data-i="${vi}" data-j="${i}" data-f="${f}"`;
     const kgT = fmtN(s.kg), lbT = f1(s.kg * LB), rT = fmtN(s.reps), fs = exFs;
     const tp = s.tempo && s.tempo !== ex.tempo ? `<span class="chipm">${s.tempo}</span>` : '';
-    const warmBtn = ex.type === 'time' ? '' : `<button class="wtag ${s.warm ? 'on' : ''}" data-act="togWarm" data-i="${run.exIdx}" data-j="${i}" aria-pressed="${!!s.warm}" aria-label="Série de aquecimento">${s.warm ? 'Aquec.' : 'Válida'}</button>`;
+    const warmBtn = ex.type === 'time' ? '' : `<button class="wtag ${s.warm ? 'on' : ''}" data-act="togWarm" data-i="${vi}" data-j="${i}" aria-pressed="${!!s.warm}" aria-label="Série de aquecimento">${s.warm ? 'Aquec.' : 'Válida'}</button>`;
     const body = ex.type === 'time' ? (isCardio(ex) ? `<span ${qa('secs')}><span>${fmtMin(s.secs)}</span><small>min</small></span>` : `<span ${qa('secs')}><span>${s.secs}</span><small>s</small></span>`)
       : `<div class="sgrid" style="--fs:${fs}px"><span ${qa('kg')} aria-label="Editar carga em kg"><b>${kgT}</b><small>kg</small></span><span ${qa('lb')} aria-label="Editar carga em libras"><b>${lbT}</b><small>lb</small></span><span class="sx" aria-hidden="true">×</span><span ${qa('reps')} aria-label="Editar repetições"><b>${rT}</b><small>reps</small></span></div><div class="smeta">${s.warm ? '<span class="chipm">Aquecimento</span>' : `<span class="chipm">RIR ${s.rir ?? S.settings.defaultRir}</span>`}${s.kind ? `<span class="chipm" style="border-color:var(--accent);color:var(--accent)">${s.kind === 'drop' ? 'Drop' : 'Rest-pause'} ${s.kn || ''}</span>` : ''}${tp}<span style="flex:1"></span>${warmBtn}</div>`;
-    return `<div class="swrap sset"><div class="sacts"><button class="sa3" data-act="delSet" data-i="${run.exIdx}" data-j="${i}">Excluir</button></div><div class="setline ${cls}${s.warm ? ' wset' : ''}" data-swipe="1"><span class="sn">${i + 1}</span><div class="setcard ${ex.type === 'time' ? '' : 'sc2'}" role="button" tabindex="0" style="cursor:pointer" data-act="editSet" data-i="${run.exIdx}" data-j="${i}" aria-label="Detalhes da série ${i + 1}">${body}</div></div></div>`;
+    return `<div class="swrap sset"><div class="sacts"><button class="sa3" data-act="delSet" data-i="${vi}" data-j="${i}">Excluir</button></div><div class="setline ${cls}${s.warm ? ' wset' : ''}" data-swipe="1"><span class="sn${s.warm || s.kind ? ' snw' : ''}">${setNo(ex, i).sn}</span><div class="setcard ${ex.type === 'time' ? '' : 'sc2'}" role="button" tabindex="0" style="cursor:pointer" data-act="editSet" data-i="${vi}" data-j="${i}" aria-label="Detalhes: ${setNo(ex, i).txt}">${body}</div></div></div>`;
   }).join('');
   const list = run.exs.map((e, i) => {
-    const done = e.sets.every(s => s.done), tag = i === run.exIdx ? '<span class="tag cur">Em execução</span><br>' : (i === nxt ? '<span class="tag nxt">Próximo</span><br>' : '');
-    const inner = `<span style="display:flex;gap:12px;align-items:center">${tileOf(getEx(e.exId))}<span style="min-width:0">${tag}<b style="${i === run.exIdx ? 'color:var(--accent)' : ''}">${esc(exLabel(e))}</b><span class="muted small num">${isCardio(e) ? fmtMin(e.sets[0].secs) + ' min' : `${e.sets.length} séries${e.type === 'time' ? ' • ' + e.sets[0].secs + ' s' : ''}`}</span></span></span>`;
+    const done = e.sets.every(s => s.done), tag = i === vi ? '<span class="tag cur">Em execução</span><br>' : (i === nxt ? '<span class="tag nxt">Próximo</span><br>' : '');
+    const inner = `<span style="display:flex;gap:12px;align-items:center">${tileOf(getEx(e.exId))}<span style="min-width:0">${tag}<b style="${i === vi ? 'color:var(--accent)' : ''}">${esc(exLabel(e))}</b><span class="muted small num">${isCardio(e) ? fmtMin(e.sets[0].secs) + ' min' : `${e.sets.length} séries${e.type === 'time' ? ' • ' + e.sets[0].secs + ' s' : ''}`}</span></span></span>`;
     const left = run.reorder ? `<div class="t">${inner}</div>` : `<button class="t" style="text-align:left" data-act="jumpEx" data-i="${i}">${inner}</button>`;
     const right = run.reorder
       ? `<button class="ib" data-act="mvRun" data-i="${i}" data-dir="-1" aria-label="Subir" ${i === 0 ? 'disabled' : ''}>${ic('up')}</button><button class="ib" data-act="mvRun" data-i="${i}" data-dir="1" aria-label="Descer" ${i === run.exs.length - 1 ? 'disabled' : ''}>${ic('down')}</button>`
@@ -2040,12 +2130,12 @@ function runView() {
     return `<div class="exrow" data-drag="r" data-i="${i}">${run.reorder ? '' : ''}${left}${right}</div>`;
   }).join('');
   return `<div class="runhead"><button class="ib" data-act="closeRun" aria-label="Encerrar treino">${ic('x')}</button><button class="pillbtn" data-act="runStats">Estatísticas</button></div>
-  <div class="lbl">Exercício ${run.exIdx + 1}/${run.exs.length}</div>
-  <div class="exhead">${tileOf(getEx(ex.exId)).replace('tile sm', 'tile')}<div class="t" data-act="openEx" data-id="${ex.exId}" data-vk="${esc(vkey(ex))}" style="cursor:pointer"><b style="text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:4px">${esc(exLabel(ex))}</b><span class="muted">${esc(ex.primary.concat(ex.secondary).join(', '))}</span></div></div>${ex.type !== 'time' ? `<button class="tempobar" data-act="runTempo">Cadência <b class="num">${ex.tempo || S.settings.tempo}</b> · ${tSec(ex.tempo || S.settings.tempo)} s por repetição <span style="margin-left:auto;color:var(--accent)">alterar</span></button>` : ''}
-  <div class="acts"><button class="btn sm" data-act="subEx" data-i="${run.exIdx}">${ic('swap')} Substituir</button><button class="btn sm" data-act="noteEx">${ic('note')} ${ex.note ? 'Nota ✓' : 'Nota'}</button></div>
-  ${run.warm && run.exIdx === 0 ? `<div class="warm ${run.phase === 'warmup' ? 'on' : ''}"><b>${ic('dumb').replace('<svg', '<svg ' + small)} Aquecimento</b><span class="muted small">Repetições livres • Carga leve</span></div>` : ''}
+  <div class="lbl">Exercício ${vi + 1}/${run.exs.length}</div>
+  <div class="exhead">${tileOf(getEx(ex.exId)).replace('tile sm', 'tile')}<div class="t" data-act="openEx" data-id="${ex.exId}" data-vk="${esc(vkey(ex))}" style="cursor:pointer"><b style="text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:4px">${esc(exLabel(ex))}</b><span class="muted">${esc(ex.primary.concat(ex.secondary).join(', '))}</span>${techLab(ex) ? `<span class="techtag">${esc(techLab(ex))}</span>` : ''}</div></div>${ex.type !== 'time' ? `<button class="tempobar" data-act="runTempo">Cadência <b class="num">${ex.tempo || S.settings.tempo}</b> · ${tSec(ex.tempo || S.settings.tempo)} s por repetição <span style="margin-left:auto;color:var(--accent)">alterar</span></button>` : ''}
+  <div class="acts"><button class="btn sm" data-act="subEx" data-i="${vi}">${ic('swap')} Substituir</button><button class="btn sm" data-act="noteEx">${ic('note')} ${ex.note ? 'Nota ✓' : 'Nota'}</button></div>
+  ${run.warm && vi === 0 ? `<div class="warm ${run.phase === 'warmup' ? 'on' : ''}"><b>${ic('dumb').replace('<svg', '<svg ' + small)} Aquecimento</b><span class="muted small">Repetições livres • Carga leve</span></div>` : ''}
   <div class="sets">${sets}</div>
-  <button class="addset" data-act="addSet">${ic('plus').replace('<svg', '<svg ' + small)} Adicionar série</button>
+  <button class="addset" data-act="addSet" data-i="${vi}">${ic('plus').replace('<svg', '<svg ' + small)} Adicionar série</button>
   <div class="sec" style="margin-top:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><h2 style="flex:1">Lista de exercícios</h2><button class="btn sm ${run.reorder ? 'primary' : ''}" data-act="reorder">${run.reorder ? 'Concluir ordem' : 'Reordenar'}</button></div><div class="card exlist">${list}</div><button class="addset" data-act="addRunEx" style="justify-content:center;width:100%">+ Adicionar exercício</button></div>
   <div style="height:150px"></div><div class="sheet" id="sheet"><div></div></div>`;
 }
@@ -2074,7 +2164,7 @@ function summaryView() {
   const allDone = run.exs.every(e => e.sets.every(x => x.done));
   return `<div class="top"><h1>${allDone ? 'Treino concluído' : 'Treino encerrado'}</h1></div><p class="muted">${esc(run.name)} · ${fmtDate(new Date(run.startedAt).toISOString())}</p><p class="muted small" style="margin-top:-6px">Confira as séries: toque em Válida/Aquec. para corrigir quais foram de aquecimento antes de salvar.</p>
   ${statsBody(r)}
-  <div class="sec"><h2>Exercícios</h2>${run.exs.map(e => { const d = e.sets.filter(x => x.done); const vol = d.reduce((a, x) => a + (x.reps || 0) * (x.kg || 0), 0); return `<div class="card" style="padding:10px 14px;margin-bottom:10px"><div style="display:flex;gap:10px;align-items:center">${tileOf(getEx(e.exId))}<b style="flex:1;min-width:0">${esc(exLabel(e))}</b><span class="muted small num">${d.length}/${e.sets.length} séries</span></div>${e.sets.map((x, j) => x.done ? `<div class="hset"><span class="sn" style="width:26px;height:26px;font-size:13px">${j + 1}</span><span style="flex:1">${x.reps != null ? `<b>${fmtN(x.kg)}</b> kg <span class="muted small">(${f1(x.kg * LB)} lb)</span> × <b>${fmtN(x.reps)}</b>${!x.warm && x.rir != null ? ` <span class="muted small">· RIR ${x.rir}</span>` : ''}` : `<b>${x.secs}</b> s`}</span>${e.type === 'time' ? '' : `<button class="wtag ${x.warm ? 'on' : ''}" data-act="togWarm" data-i="${run.exs.indexOf(e)}" data-j="${j}" aria-pressed="${!!x.warm}">${x.warm ? 'Aquec.' : 'Válida'}</button>`}</div>` : '').join('')}${vol ? `<div class="muted small" style="padding-top:6px">Volume: ${kgLb(vol)}</div>` : ''}</div>`; }).join('')}</div>
+  <div class="sec"><h2>Exercícios</h2>${run.exs.map(e => { const d = e.sets.filter(x => x.done); const vol = d.reduce((a, x) => a + (x.reps || 0) * (x.kg || 0), 0); return `<div class="card" style="padding:10px 14px;margin-bottom:10px"><div style="display:flex;gap:10px;align-items:center">${tileOf(getEx(e.exId))}<b style="flex:1;min-width:0">${esc(exLabel(e))}</b><span class="muted small num">${d.length}/${e.sets.length} séries</span></div>${e.sets.map((x, j) => x.done ? `<div class="hset"><span class="sn" style="width:26px;height:26px;font-size:13px">${setNo(e, j).sn}</span><span style="flex:1">${x.reps != null ? `<b>${fmtN(x.kg)}</b> kg <span class="muted small">(${f1(x.kg * LB)} lb)</span> × <b>${fmtN(x.reps)}</b>${!x.warm && x.rir != null ? ` <span class="muted small">· RIR ${x.rir}</span>` : ''}` : `<b>${x.secs}</b> s`}</span>${e.type === 'time' ? '' : `<button class="wtag ${x.warm ? 'on' : ''}" data-act="togWarm" data-i="${run.exs.indexOf(e)}" data-j="${j}" aria-pressed="${!!x.warm}">${x.warm ? 'Aquec.' : 'Válida'}</button>`}</div>` : '').join('')}${vol ? `<div class="muted small" style="padding-top:6px">Volume: ${kgLb(vol)}</div>` : ''}</div>`; }).join('')}</div>
   <div class="sec"><h2>Frequência cardíaca (opcional)</h2><div class="card" style="padding:14px;display:flex;flex-direction:column;gap:8px"><label class="uf"><input type="text" inputmode="numeric" id="hr_avg" placeholder="Média do relógio" aria-label="Frequência cardíaca média"><span>bpm</span></label><span class="muted small">Se você digitar a média que o relógio mostrou, as calorias passam a ser calculadas pela frequência cardíaca (precisa da idade na aba Corpo).</span></div></div>
   <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px"><button class="btn primary block" data-act="saveRun">Salvar no histórico</button><button class="btn block danger" data-act="discardRun">Descartar</button></div>`;
 }
@@ -2234,7 +2324,7 @@ function miniTxt() {
 }
 function miniRunHtml() {
   const m = miniTxt(), ex = curEx();
-  return `<button class="minirun ${run.phase === 'rest' && !run.pausedAt ? 'isrest' : ''}" data-act="toRun" aria-label="Voltar ao treino em andamento" style="--ph:${m.color}"><i class="dot"></i><span class="mt"><b>${esc(run.name)}</b><span id="mrl">${m.lab} · ${esc(exLabel(ex))} · série ${run.setIdx + 1}/${ex.sets.length}</span></span><b class="num" id="mrt">${m.t}</b></button>`;
+  return `<button class="minirun ${run.phase === 'rest' && !run.pausedAt ? 'isrest' : ''}" data-act="toRun" aria-label="Voltar ao treino em andamento" style="--ph:${m.color}"><i class="dot"></i><span class="mt"><b>${esc(run.name)}</b><span id="mrl">${m.lab} · ${esc(exLabel(ex))} · ${setNo(ex, run.setIdx).txt}</span></span><b class="num" id="mrt">${m.t}</b></button>`;
 }
 function render() {
   const y = window.scrollY;
@@ -2288,7 +2378,7 @@ const H = {
   openW: d => { closeModal(); go({n: 'workout', id: d.id}); },
   newRoutine: () => promptBox('Nome da rotina', 'Rotina ' + (S.routines.length + 1), 'doNewRoutine'),
   doNewRoutine: () => { const n = val('pv').trim(); if (!n) return; const r = {id: uid(), name: n, workouts: [], defaults: {sets: 4, repsMin: 8, repsMax: 12, rest: 60}}; S.routines.forEach(x => x.collapsed = true); r.touched = Date.now(); S.routines.unshift(r); persist(); closeModal(); render(); rdModal(r); },
-  routineMenu: d => menu(S.routines.find(r => r.id === d.id).name, [{t: 'Exportar rotina em texto (.txt)', act: 'txtR', d: {id: d.id}}, {t: 'Padrão dos exercícios (séries, reps, descanso)', act: 'rdOpen', d: {id: d.id}}, {t: 'Renomear', act: 'renRoutine', d: {id: d.id}}, {t: 'Excluir rotina', act: 'delRoutineAsk', d: {id: d.id}, danger: 1}]),
+  routineMenu: d => menu(S.routines.find(r => r.id === d.id).name, [{t: 'Exportar rotina (.json, para importar)', act: 'jsonR', d: {id: d.id}}, {t: 'Exportar rotina em texto (.txt)', act: 'txtR', d: {id: d.id}}, {t: 'Padrão dos exercícios (séries, reps, descanso)', act: 'rdOpen', d: {id: d.id}}, {t: 'Renomear', act: 'renRoutine', d: {id: d.id}}, {t: 'Excluir rotina', act: 'delRoutineAsk', d: {id: d.id}, danger: 1}]),
   renRoutine: d => promptBox('Nome da rotina', S.routines.find(r => r.id === d.id).name, 'doRenRoutine', {id: d.id}),
   doRenRoutine: d => { const n = val('pv').trim(); if (!n) return; S.routines.find(r => r.id === d.id).name = n; persist(); closeModal(); render(); },
   delRoutineAsk: d => confirmBox('Excluir rotina?', 'Os treinos dela serão removidos. O histórico fica.', 'delRoutine', {id: d.id}, 'Excluir'),
@@ -2365,24 +2455,29 @@ const H = {
   saveRun: () => saveRun(),
   editSet: d => {
     const e = run.exs[+d.i], s = e.sets[+d.j];
-    modal(`<h2>Série ${+d.j + 1}</h2>${e.type === 'time' ? `<div class="field"><span class="lbl">Segundos</span><div class="step"><button data-act="stp" data-t="s_secs" data-by="-5" aria-label="Menos 5">−</button><input type="number" inputmode="numeric" id="s_secs" value="${s.secs}" aria-label="Segundos"><button data-act="stp" data-t="s_secs" data-by="5" aria-label="Mais 5">+</button></div></div>` : `<div class="field"><span class="lbl">Repetições</span><div class="step"><button data-act="stp" data-t="s_reps" data-by="-1" aria-label="Menos 1">−</button><input type="number" inputmode="numeric" id="s_reps" value="${s.reps}" aria-label="Repetições"><button data-act="stp" data-t="s_reps" data-by="1" aria-label="Mais 1">+</button></div></div><div class="field"><span class="lbl">Carga (kg e lb)</span><div class="step"><button data-act="stp" data-t="s_kg" data-by="-2.5" aria-label="Menos 2,5 kg">−</button>${cvg('s_kg', null, s.kg, ['kg', 'lb'], {kg: 's_kg', lb: 's_lb'})}<button data-act="stp" data-t="s_kg" data-by="2.5" aria-label="Mais 2,5 kg">+</button></div></div><div class="field"><label class="lbl" for="s_rir">RIR (repetições na reserva)</label><select id="s_rir">${rirOpts(s.rir ?? S.settings.defaultRir)}</select></div><div class="field"><span class="lbl">Cadência desta série</span>${tRow('s_t', s.tempo || e.tempo || S.settings.tempo, '')}<span class="muted small">Excêntrica · pausa · concêntrica · pausa, em segundos.</span></div><label class="chkrow"><input type="checkbox" id="s_warm" ${s.warm ? 'checked' : ''}> Série de aquecimento (não conta no volume)</label>
+    modal(`<h2>${esc(cap1(setNo(e, +d.j).txt))}</h2>${e.type === 'time' ? `<div class="field"><span class="lbl">Segundos</span><div class="step"><button data-act="stp" data-t="s_secs" data-by="-5" aria-label="Menos 5">−</button><input type="number" inputmode="numeric" id="s_secs" value="${s.secs}" aria-label="Segundos"><button data-act="stp" data-t="s_secs" data-by="5" aria-label="Mais 5">+</button></div></div>` : `<div class="field"><span class="lbl">Repetições</span><div class="step"><button data-act="stp" data-t="s_reps" data-by="-1" aria-label="Menos 1">−</button><input type="number" inputmode="numeric" id="s_reps" value="${s.reps}" aria-label="Repetições"><button data-act="stp" data-t="s_reps" data-by="1" aria-label="Mais 1">+</button></div></div><div class="field"><span class="lbl">Carga (kg e lb)</span><div class="step"><button data-act="stp" data-t="s_kg" data-by="-2.5" aria-label="Menos 2,5 kg">−</button>${cvg('s_kg', null, s.kg, ['kg', 'lb'], {kg: 's_kg', lb: 's_lb'})}<button data-act="stp" data-t="s_kg" data-by="2.5" aria-label="Mais 2,5 kg">+</button></div></div><div class="field"><label class="lbl" for="s_rir">RIR (repetições na reserva)</label><select id="s_rir">${rirOpts(s.rir ?? S.settings.defaultRir)}</select></div><div class="field"><span class="lbl">Cadência desta série</span>${tRow('s_t', s.tempo || e.tempo || S.settings.tempo, '')}<span class="muted small">Excêntrica · pausa · concêntrica · pausa, em segundos.</span></div><label class="chkrow"><input type="checkbox" id="s_warm" ${s.warm ? 'checked' : ''}> Série de aquecimento (não conta no volume)</label>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" style="flex:1" data-act="saveSet" data-i="${d.i}" data-j="${d.j}" data-ap="kg">Aplicar carga às séries restantes</button><button class="btn sm" style="flex:1" data-act="saveSet" data-i="${d.i}" data-j="${d.j}" data-ap="reps">Aplicar reps às séries restantes</button></div>`}<label class="chkrow"><input type="checkbox" id="s_done" ${s.done ? 'checked' : ''}> Série feita${s.done ? ' (desmarque para refazer)' : ''}</label><button class="btn primary block" data-act="saveSet" data-i="${d.i}" data-j="${d.j}">Salvar</button><button class="btn block danger" data-act="delSet" data-i="${d.i}" data-j="${d.j}">Remover série</button>`);
   },
   stp: d => { const el = document.getElementById(d.t); el.value = Math.max(0, Math.round((num(el.value) + +d.by) * 10) / 10); el.dispatchEvent(new Event('input', {bubbles: true})); },
   saveSet: d => { const e = run.exs[+d.i], s = e.sets[+d.j]; setDoneFrom(+d.i, +d.j); if (e.type === 'time') s.secs = Math.max(1, Math.round(num(val('s_secs')))); else { s.reps = Math.max(0, Math.round(num(val('s_reps')))); s.kg = Math.max(0, cvRead('s_kg')); s.rir = +val('s_rir'); { const w0 = !!s.warm; s.warm = !!(document.getElementById('s_warm') || {}).checked; warmKeep(+d.i, +d.j, w0); } { const t = tRowRead('s_t'); s.tempo = t === e.tempo ? '' : t; } if (d.ap) { const n = applyRest(e, +d.j, d.ap); toast(n ? `${d.ap === 'kg' ? 'Carga' : 'Repetições'} aplicada${d.ap === 'kg' ? '' : 's'} a mais ${n} série${n > 1 ? 's' : ''}` : 'Não há séries restantes'); } } persistRun(); closeModal(); render(); },
   runTempo: () => {
-    const ex = curEx();
+    const ex = viewEx();
     modal(`<h2>Cadência</h2><p class="muted small" style="margin:0">${esc(exLabel(ex))}</p>${tempoBlock('rt', ex.tempo || S.settings.tempo, '', '', true)}
     <label class="chkrow"><input type="checkbox" id="rt_all" checked> Usar nas séries que faltam (inclusive as que têm cadência própria)</label>
     <label class="chkrow"><input type="checkbox" id="rt_plan"> Salvar também no treino, para as próximas vezes</label>
     <button class="btn primary block" data-act="saveRunTempo">Salvar</button>`);
   },
   saveRunTempo: () => {
-    const ex = curEx(), t = readTempo('rt'); ex.tempo = t; if (ex.cfg) ex.cfg.tempo = t;
+    const ex = viewEx(), t = readTempo('rt'); ex.tempo = t; if (ex.cfg) ex.cfg.tempo = t;
     if ((document.getElementById('rt_all') || {}).checked) ex.sets.forEach(x => { if (!x.done) x.tempo = ''; });
     if ((document.getElementById('rt_plan') || {}).checked) { const f = findW(run.workoutId), c = f && ex.cfg && f.w.exercises.find(x => x.id === ex.cfg.id); if (c) { c.tempo = t; if ((document.getElementById('rt_all') || {}).checked) c.tempoSets = null; persist(); } }
     persistRun(); closeModal(); render(); toast('Cadência ' + t);
   },
+  rtImpOpen: () => rtImpModal(),
+  rtPaste: () => { const t = val('rt_txt').trim(); if (!t) { const el = document.getElementById('rt_err'); if (el) el.textContent = 'Cole o texto ou escolha um arquivo.'; return; } rtCheck(t); },
+  rtDo: () => rtApply(),
+  jsonR: async d => { closeModal(); const r = S.routines.find(x => x.id === d.id); if (!r) return; const res = await shareFile(txtName('rotina ' + r.name).replace(/\.txt$/, '.json'), JSON.stringify(routinePack([r]), null, 1), 'application/json'); if (res === 'saved') toast('Arquivo salvo'); },
+  rtExpAll: async () => { if (!S.routines.length) return toast('Nenhuma rotina'); const res = await shareFile('diario-de-ferro-rotinas-' + dkey(new Date()) + '.json', JSON.stringify(routinePack(routinesOrdered()), null, 1), 'application/json'); if (res === 'saved') toast('Arquivo salvo'); },
   txtR: async d => { closeModal(); const r = S.routines.find(x => x.id === d.id); if (!r) return; const res = await shareFile(txtName('rotina ' + r.name), routineTxt(r), 'text/plain'); if (res === 'saved') toast('Arquivo salvo'); },
   txtW: async () => { closeModal(); const f = findW(view.id); const r = await shareFile(txtName(f.w.name), planTxt(f.w, f.r), 'text/plain'); if (r === 'saved') toast('Arquivo salvo'); },
   txtS: async d => { const s = sessions.find(x => x.id === d.id); if (!s) return; const r = await shareFile(txtName(s.name + ' ' + dkey(new Date(s.date))), sessTxt(s), 'text/plain'); if (r === 'saved') toast('Arquivo salvo'); },
@@ -2425,9 +2520,9 @@ const H = {
     persistRun(); closeModal(); render(); if (d.all) toast(n ? `Aplicado a mais ${n} série${n > 1 ? 's' : ''}` : 'Não há séries restantes');
   },
   delSet: d => { const e = run.exs[+d.i]; if (e.sets.length < 2) { closeSwipes(); return toast('Mantenha ao menos uma série'); } e.sets.splice(+d.j, 1); if (run.prevPtr && run.prevPtr[0] === +d.i) { if (run.prevPtr[1] === +d.j) run.prevPtr = null; else if (run.prevPtr[1] > +d.j) run.prevPtr = [run.prevPtr[0], run.prevPtr[1] - 1]; } if (run.exIdx === +d.i && run.setIdx > +d.j) run.setIdx--; toast('Série removida'); if (run.exIdx === +d.i && run.setIdx >= e.sets.length) run.setIdx = e.sets.length - 1; persistRun(); closeModal(); render(); },
-  addSet: () => { const e = curEx(), l = e.sets[e.sets.length - 1]; e.sets.push(Object.assign({}, l, {done: false, actual: undefined})); persistRun(); render(); },
-  noteEx: () => modal(`<h2>Nota</h2><textarea id="n_t" aria-label="Nota do exercício">${esc(curEx().note)}</textarea><button class="btn primary block" data-act="saveNote">Salvar</button>`),
-  saveNote: () => { curEx().note = val('n_t').trim(); persistRun(); closeModal(); render(); },
+  addSet: d => { const e = run.exs[d && d.i != null ? +d.i : run.exIdx] || curEx(), l = e.sets[e.sets.length - 1]; e.sets.push(Object.assign({}, l, {done: false, actual: undefined})); persistRun(); render(); },
+  noteEx: () => modal(`<h2>Nota</h2><textarea id="n_t" aria-label="Nota do exercício">${esc(viewEx().note)}</textarea><button class="btn primary block" data-act="saveNote">Salvar</button>`),
+  saveNote: () => { viewEx().note = val('n_t').trim(); persistRun(); closeModal(); render(); },
   jumpEx: d => { const i = +d.i, e = run.exs[i], k = e.sets.findIndex(s => !s.done); if (k < 0) return toast('Exercício já concluído'); run.exIdx = i; run.setIdx = k; setPhase(prepPh()); render(); },
   subEx: d => similarPick(run.exs[+d.i].exId, (id) => { const i = +d.i, old = run.exs[i]; const c = Object.assign({}, old.cfg, {exId: id, variant: pickPreset.variant || '', grip: pickPreset.grip || ''}); pickPreset = {}; const nr = buildRunEx(c); nr.sets = nr.sets.slice(0, 1).length ? Array.from({length: old.sets.length}, (_, k) => Object.assign({}, nr.sets[Math.min(k, nr.sets.length - 1)], {done: old.sets[k] ? old.sets[k].done : false})) : nr.sets; nr.note = old.note; run.exs[i] = nr; persistRun(); render(); }, run.exs[+d.i].grip, run.exs[+d.i].variant),
   runExMenu: d => menu(run.exs[+d.i].name, [{t: 'Editar séries do plano', act: 'editRunEx', d: {i: d.i}}, {t: 'Substituir', act: 'subExM', d: {i: d.i}}, {t: 'Pular', act: 'skipEx', d: {i: d.i}}, {t: 'Remover do treino', act: 'rmRunEx', d: {i: d.i}, danger: 1}]),
@@ -2575,6 +2670,7 @@ const H = {
   delCustom: d => { S.customEx = S.customEx.filter(x => x.id !== d.id); S.routines.forEach(r => r.workouts.forEach(w => { w.exercises = w.exercises.filter(x => x.exId !== d.id); })); persist(); closeModal(); render(); toast('Exercício excluído'); },
   tagTog: d => { const el = $('#pq'); if (!el) return; let toks = el.value.split(/\s+/).filter(Boolean); const t = d.t; if (toks.some(x => normTxt(x) === normTxt(t))) toks = toks.filter(x => normTxt(x) !== normTxt(t)); else toks.push(t); el.value = toks.join(' '); $('#plist').innerHTML = pickList(el.value); $('#ptags').innerHTML = tagsHtml(el.value); },
   tagClear: () => { S.searchTags = []; persist(); const tg = $('#ptags'); if (tg) tg.innerHTML = ''; },
+  warmAdd: d => { closeModal(); addWork(+d.i, +d.j); persistRun(); render(); },
   togWarm: d => { const st = run.exs[+d.i].sets[+d.j], w0 = !!st.warm; st.warm = !st.warm; warmKeep(+d.i, +d.j, w0); if (!st.warm && st.rir == null) st.rir = S.settings.defaultRir; persistRun(); render(); },
   seWarm: d => { syncDraft(); const st = draft.exercises[+d.i].sets[+d.j]; st.warm = !st.warm; render(); },
   openS: d => { const s = sessions.find(x => x.id === d.id); modal(`<h2>${esc(s.name)}</h2><p class="muted" style="margin:0">${fmtDate(s.date)} · ${longT(s.durMs)} · ${s.kcal} kcal</p>${s.exercises.map(e => `<div><b>${esc(exLabel(e))}</b>${e.sets.filter(x => x.done).map((x, i) => `<div class="muted small num">${i + 1}. ${x.secs != null && x.reps == null ? x.secs + ' s' : fmtN(x.reps) + ' reps · ' + fmtN(x.kg) + ' kg (' + r1(x.kg * LB) + ' lb)'}</div>`).join('') || '<div class="muted small">Sem séries concluídas</div>'}${e.note ? `<div class="small">Nota: ${esc(e.note)}</div>` : ''}</div>`).join('')}<button class="btn block" data-act="txtS" data-id="${s.id}">Exportar em texto (.txt)</button><button class="btn block" data-act="editS" data-id="${s.id}">${ic('pencil')} Editar treino</button><button class="btn block danger" data-act="delSAsk" data-id="${s.id}">Excluir do histórico</button>`); },
@@ -2599,6 +2695,7 @@ const CH = {
   setrir(el) { S.settings.defaultRir = +el.value; persist(); },
   setsel(el) { S.settings[el.dataset.k] = el.value; persist(); },
   expPer(el) { const r = $('#ex_rng'); if (r) r.hidden = el.value !== 'range'; },
+  rtFile(el) { const f = el.files && el.files[0]; if (!f) return; const fr = new FileReader(); fr.onload = () => rtCheck(String(fr.result)); fr.onerror = () => { const e = document.getElementById('rt_err'); if (e) e.textContent = 'Não consegui ler o arquivo.'; }; fr.readAsText(f); el.value = ''; },
   impFile(el) { const f = el.files && el.files[0]; if (!f) return; const fr = new FileReader(); fr.onload = () => { try { importObj(JSON.parse(String(fr.result).replace(/^\uFEFF/, ''))); toast('Backup restaurado'); } catch (e) { toast('Arquivo de backup inválido'); } }; fr.readAsText(f); el.value = ''; },
   evoSel(el) { view.evo = el.value; render(); },
   exPeriod(el) { view.period = el.value; render(); },
@@ -2707,7 +2804,7 @@ if (!inClaude() && navigator.storage && navigator.storage.persist) navigator.sto
 </script>
 
 <script>
-if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202610271751').catch(() => {});
+if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202610290132').catch(() => {});
 </script>
 </body>
 </html>
