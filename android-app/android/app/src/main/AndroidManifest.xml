@@ -26,6 +26,14 @@
 
         <receiver android:name=".FerroNotifReceiver" android:exported="false" />
         <receiver android:name=".FerroAlarmReceiver" android:exported="false" />
+        <service
+            android:name=".FerroWorkoutService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Cronometro do treino em andamento: mantem series, descanso e os botoes da notificacao funcionando com a tela apagada" />
+        </service>
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -47,4 +55,6 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 </manifest>

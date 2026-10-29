@@ -309,7 +309,9 @@ public class FerroNotifPlugin extends Plugin {
         if (contentPi != null) b.setContentIntent(contentPi);
 
         try {
-            NotificationManagerCompat.from(ctx).notify(NOTIF_ID, b.build());
+            Notification n = b.build();
+            NotificationManagerCompat.from(ctx).notify(NOTIF_ID, n);
+            FerroWorkoutService.start(ctx, n);
             call.resolve();
         } catch (SecurityException e) {
             call.reject("Sem permissão para notificações");
@@ -371,6 +373,7 @@ public class FerroNotifPlugin extends Plugin {
 
     @PluginMethod
     public void hide(PluginCall call) {
+        FerroWorkoutService.stop(getContext());
         NotificationManagerCompat.from(getContext()).cancel(NOTIF_ID);
         call.resolve();
     }
