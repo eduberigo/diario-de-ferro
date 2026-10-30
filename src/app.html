@@ -1364,10 +1364,16 @@ async function shareFile(name, text, type) {
 const backupObj = () => ({app: 'ferro', v: 2, savedAt: new Date().toISOString(), state: S, sessions});
 const backupName = () => 'diario-de-ferro-backup-' + dkey(new Date()) + '.json';
 /* rotinas prontas: importa só rotinas (e notas), sem tocar em ajustes, corpo, academia ou histórico */
+/* troca/edição feita durante o treino vale só para hoje; o usuário pode levar para o treino oficial */
+function askOfficial(i, kind) {
+  const f = findW(run.workoutId), e = run.exs[i]; if (!f || !e || !e.cfg) return;
+  const pi = f.w.exercises.findIndex(x => x.id === e.cfg.id); if (pi < 0) return;
+  modal(`<h2>${kind === 'sub' ? 'Trocado só neste treino' : 'Alterado só neste treino'}</h2><p class="muted" style="margin:0">${kind === 'sub' ? `Hoje você faz <b>${esc(exLabel(e))}</b>. Na próxima vez volta o exercício do treino oficial` : 'A mudança vale para hoje. Na próxima vez volta o que está no treino oficial'}, a menos que você leve a mudança para lá.</p><div style="display:flex;flex-direction:column;gap:10px"><button class="btn primary" data-act="closeModal">Só neste treino</button><button class="btn" data-act="toOfficial" data-i="${i}">Mudar também o treino oficial</button></div>`);
+}
 function routinePack(rs) {
   const ids = new Set(rs.flatMap(r => r.workouts.flatMap(w => w.exercises.map(e => e.exId)))), notes = {};
   ids.forEach(id => { if (S.exNotes[id]) notes[id] = S.exNotes[id]; });
-  const c = JSON.parse(JSON.stringify(rs)); c.forEach(r => { delete r.collapsed; delete r.touched; });
+  const c = JSON.parse(JSON.stringify(rs)); c.forEach(r => { delete r.collapsed; delete r.touched; delete r.ref; });
   return {app: 'ferro', kind: 'routines', v: 1, routines: c, exNotes: notes};
 }
 let rtImp = null;
@@ -1419,7 +1425,7 @@ function rtCheck(txt) {
 }
 function rtApply() {
   if (!rtImp) return; const {rs, notes} = rtImp, t = Date.now(); rtImp = null;
-  rs.forEach((r, k) => { r.id = uid(); r.collapsed = false; r.touched = t + rs.length - k; r.workouts.forEach(w => { w.id = uid(); w.exercises.forEach(e => { e.id = uid(); }); }); });
+  rs.forEach((r, k) => { r.id = uid(); r.collapsed = false; r.touched = t + rs.length - k; r.workouts.forEach(w => { w.id = uid(); w.exercises.forEach(e => { e.id = uid(); }); }); r.ref = {at: new Date().toISOString(), workouts: JSON.parse(JSON.stringify(r.workouts))}; });
   S.routines.forEach(x => x.collapsed = true);
   S.routines.unshift(...rs);
   Object.entries(notes).forEach(([id, txt]) => { const cur = S.exNotes[id] || ''; if (!cur.includes(txt)) S.exNotes[id] = cur ? cur.replace(/\s+$/, '') + '\n\n' + txt : txt; });
@@ -2394,7 +2400,7 @@ const H = {
   openW: d => { closeModal(); go({n: 'workout', id: d.id}); },
   newRoutine: () => promptBox('Nome da rotina', 'Rotina ' + (S.routines.length + 1), 'doNewRoutine'),
   doNewRoutine: () => { const n = val('pv').trim(); if (!n) return; const r = {id: uid(), name: n, workouts: [], defaults: {sets: 4, repsMin: 8, repsMax: 12, rest: 60}}; S.routines.forEach(x => x.collapsed = true); r.touched = Date.now(); S.routines.unshift(r); persist(); closeModal(); render(); rdModal(r); },
-  routineMenu: d => menu(S.routines.find(r => r.id === d.id).name, [{t: 'Exportar rotina (.json, para importar)', act: 'jsonR', d: {id: d.id}}, {t: 'Exportar rotina em texto (.txt)', act: 'txtR', d: {id: d.id}}, {t: 'Padrão dos exercícios (séries, reps, descanso)', act: 'rdOpen', d: {id: d.id}}, {t: 'Renomear', act: 'renRoutine', d: {id: d.id}}, {t: 'Excluir rotina', act: 'delRoutineAsk', d: {id: d.id}, danger: 1}]),
+  routineMenu: d => { const rr = S.routines.find(r => r.id === d.id); menu(rr.name, [...(rr.ref ? [{t: `Restaurar versão de referência (${new Date(rr.ref.at).toLocaleDateString('pt-BR')})`, act: 'refAsk', d: {id: d.id}}] : []), {t: rr.ref ? 'Atualizar a referência com a versão atual' : 'Guardar a versão atual como referência', act: 'refSave', d: {id: d.id}}, {t: 'Exportar rotina (.json, para importar)', act: 'jsonR', d: {id: d.id}}, {t: 'Exportar rotina em texto (.txt)', act: 'txtR', d: {id: d.id}}, {t: 'Padrão dos exercícios (séries, reps, descanso)', act: 'rdOpen', d: {id: d.id}}, {t: 'Renomear', act: 'renRoutine', d: {id: d.id}}, {t: 'Excluir rotina', act: 'delRoutineAsk', d: {id: d.id}, danger: 1}]); },
   renRoutine: d => promptBox('Nome da rotina', S.routines.find(r => r.id === d.id).name, 'doRenRoutine', {id: d.id}),
   doRenRoutine: d => { const n = val('pv').trim(); if (!n) return; S.routines.find(r => r.id === d.id).name = n; persist(); closeModal(); render(); },
   delRoutineAsk: d => confirmBox('Excluir rotina?', 'Os treinos dela serão removidos. O histórico fica.', 'delRoutine', {id: d.id}, 'Excluir'),
@@ -2446,7 +2452,7 @@ const H = {
       } else if (c.plan) c.sets = c.plan.length;
     }
     c.variant = val('e_var').trim(); c.grip = val('e_grip');
-    if (editFor === 'run') { const r = run.exs[editRunIdx]; const nr = buildRunEx(c); nr.note = r.note; run.exs.splice(editRunIdx, 1, nr); editFor = null; persistRun(); closeModal(); render(); return; }
+    if (editFor === 'run') { const r = run.exs[editRunIdx]; const nr = buildRunEx(c); nr.note = r.note; const ri = editRunIdx; nr.sets.forEach((x, k) => { if (r.sets[k] && r.sets[k].done) nr.sets[k] = r.sets[k]; }); run.exs.splice(editRunIdx, 1, nr); editFor = null; persistRun(); closeModal(); render(); setTimeout(() => askOfficial(ri, 'edit'), 0); return; }
     const a = findW(view.id).w.exercises;
     if (+d.new) a.push(c); else a[+d.i] = c;
     persist(); closeModal(); render();
@@ -2489,6 +2495,16 @@ const H = {
     if ((document.getElementById('rt_plan') || {}).checked) { const f = findW(run.workoutId), c = f && ex.cfg && f.w.exercises.find(x => x.id === ex.cfg.id); if (c) { c.tempo = t; if ((document.getElementById('rt_all') || {}).checked) c.tempoSets = null; persist(); } }
     persistRun(); closeModal(); render(); toast('Cadência ' + t);
   },
+  toOfficial: d => {
+    const e = run.exs[+d.i], f = findW(run.workoutId); if (!e || !f) return closeModal();
+    const pi = f.w.exercises.findIndex(x => x.id === e.cfg.id); if (pi < 0) return closeModal();
+    const old = f.w.exercises[pi], c = JSON.parse(JSON.stringify(e.cfg)); c.id = old.id;
+    if (c.exId !== old.exId) { c.plan = null; const l = getEx(c.exId); if (l.primary.some(m => !(f.w.groups || []).includes(m))) f.w.groups = [...new Set((f.w.groups || []).concat(l.primary))]; }
+    f.w.exercises[pi] = c; persist(); closeModal(); toast('Treino oficial atualizado');
+  },
+  refSave: d => { const r = S.routines.find(x => x.id === d.id); if (!r) return; r.ref = {at: new Date().toISOString(), workouts: JSON.parse(JSON.stringify(r.workouts))}; persist(); closeModal(); toast('Versão de referência guardada'); },
+  refAsk: d => { const r = S.routines.find(x => x.id === d.id); if (!r || !r.ref) return; confirmBox('Restaurar a versão de referência?', `Os treinos desta rotina voltam a ser exatamente como estavam em ${new Date(r.ref.at).toLocaleDateString('pt-BR')}. Trocas e ajustes feitos depois saem do treino oficial. O histórico não muda.`, 'refDo', {id: d.id}, 'Restaurar'); },
+  refDo: d => { const r = S.routines.find(x => x.id === d.id); if (!r || !r.ref) return; r.workouts = JSON.parse(JSON.stringify(r.ref.workouts)); norm(S); persist(); closeModal(); render(); toast('Rotina restaurada'); },
   rtImpOpen: () => rtImpModal(),
   rtPaste: () => { const t = val('rt_txt').trim(); if (!t) { const el = document.getElementById('rt_err'); if (el) el.textContent = 'Cole o texto ou escolha um arquivo.'; return; } rtCheck(t); },
   rtDo: () => rtApply(),
@@ -2555,7 +2571,7 @@ const H = {
   noteEx: () => modal(`<h2>Nota</h2><textarea id="n_t" aria-label="Nota do exercício">${esc(viewEx().note)}</textarea><button class="btn primary block" data-act="saveNote">Salvar</button>`),
   saveNote: () => { viewEx().note = val('n_t').trim(); persistRun(); closeModal(); render(); },
   jumpEx: d => { const i = +d.i, e = run.exs[i], k = e.sets.findIndex(s => !s.done); if (k < 0) return toast('Exercício já concluído'); run.exIdx = i; run.setIdx = k; setPhase(prepPh()); render(); },
-  subEx: d => similarPick(run.exs[+d.i].exId, (id) => { const i = +d.i, old = run.exs[i]; const c = Object.assign({}, old.cfg, {exId: id, variant: pickPreset.variant || '', grip: pickPreset.grip || ''}); pickPreset = {}; const nr = buildRunEx(c); nr.sets = nr.sets.slice(0, 1).length ? Array.from({length: old.sets.length}, (_, k) => Object.assign({}, nr.sets[Math.min(k, nr.sets.length - 1)], {done: old.sets[k] ? old.sets[k].done : false})) : nr.sets; nr.note = old.note; run.exs[i] = nr; persistRun(); render(); }, run.exs[+d.i].grip, run.exs[+d.i].variant),
+  subEx: d => similarPick(run.exs[+d.i].exId, (id) => { const i = +d.i, old = run.exs[i]; const c = Object.assign({}, old.cfg, {exId: id, variant: pickPreset.variant || '', grip: pickPreset.grip || ''}); pickPreset = {}; const nr = buildRunEx(c); nr.sets = nr.sets.slice(0, 1).length ? Array.from({length: old.sets.length}, (_, k) => Object.assign({}, nr.sets[Math.min(k, nr.sets.length - 1)], {done: old.sets[k] ? old.sets[k].done : false})) : nr.sets; nr.note = old.note; run.exs[i] = nr; persistRun(); render(); setTimeout(() => askOfficial(i, 'sub'), 0); }, run.exs[+d.i].grip, run.exs[+d.i].variant),
   runExMenu: d => menu(run.exs[+d.i].name, [{t: 'Editar séries do plano', act: 'editRunEx', d: {i: d.i}}, {t: 'Substituir', act: 'subExM', d: {i: d.i}}, {t: 'Pular', act: 'skipEx', d: {i: d.i}}, {t: 'Remover do treino', act: 'rmRunEx', d: {i: d.i}, danger: 1}]),
   editRunEx: d => { editFor = 'run'; editRunIdx = +d.i; exEditor(JSON.parse(JSON.stringify(run.exs[+d.i].cfg)), false, +d.i); },
   subExM: d => { closeModal(); H.subEx(d); },
