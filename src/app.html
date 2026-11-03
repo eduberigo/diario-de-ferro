@@ -601,7 +601,7 @@ function seed() {
   const ex = (exId, sets, repsMin, repsMax, kgMin, kgMax, variant = '') => ({id: uid(), exId, sets, repsMin, repsMax, kgMin, kgMax, secs: 30, rest: 60, variant, rir: Array(sets).fill(2)});
   return {
     v: 2, updatedAt: 0, equip: null,
-    settings: {continuous: true, sound: true, vibrate: true, prep: true, prepSec: 10, defaultRest: 60, weightKg: 84, smart: true, warmup: true, repUp: 2, repDown: 2, tempo: '2-0-2-0', theme: 'auto', exChange: 180, autoBackup: false, defaultRir: 2, mediaCtl: false, countMode: 'bipe', countFrom: 5, startSound: 'sino', remindEvery: 5, chartLb: false, measIn: false},
+    settings: {continuous: true, sound: true, vibrate: true, prep: true, prepSec: 10, defaultRest: 60, weightKg: 84, smart: true, warmup: true, repUp: 2, repDown: 2, tempo: '2-0-2-0', theme: 'auto', exChange: 180, autoBackup: false, defaultRir: 2, mediaCtl: false, countMode: 'bipe', countFrom: 5, startSound: 'sino', restSound: 'bipe3', remindEvery: 5, chartLb: false, measIn: false},
     profile: {sex: 'M', age: null, heightCm: null, weightKg: 84, fatKg: null, leanKg: null, leanAuto: true, boneKg: null, muscleKg: null, meas: {}, log: []},
     customEx: [],
     routines: [{id: uid(), name: 'Rotina 1', workouts: [{id: uid(), name: 'Treino A', groups: ['Dorsais', 'Trapézio', 'Abdômen'], exercises: [
@@ -1246,12 +1246,13 @@ function settingsView() {
   ${nf('countFrom', 'Contar a partir de', 'Segundos finais da preparação.', 's')}
   <div class="set"><div class="t"><b>Som de início</b><span class="muted small">Toca quando a série começa.</span></div><select data-act-change="setsel" data-k="startSound" aria-label="Som de início" style="width:140px">${selOpts([['sino', 'Sino de ringue'], ['apito', 'Apito'], ['gongo', 'Gongo'], ['campainha', 'Campainha'], ['buzina', 'Buzina'], ['arpejo', 'Fanfarra curta'], ['tambor', 'Tambor'], ['vai', 'Largada (bip-bip-biiip)'], ['bipe', 'Bipe']], s.startSound)}</select></div>
   <div class="set"><div class="t"><b>Repetir o apito se a série não começar</b><span class="muted small">Quando o descanso ou o preparo acaba e você não toca em nada, o apito repete (até 6 vezes). Para no primeiro toque, no app ou na notificação.</span></div><select data-act-change="setsel" data-k="remindEvery" aria-label="Repetir o apito" style="width:140px">${selOpts([['5', 'A cada 5 s'], ['10', 'A cada 10 s'], ['15', 'A cada 15 s'], ['20', 'A cada 20 s'], ['30', 'A cada 30 s'], ['0', 'Não repetir']], String(s.remindEvery ?? 5))}</select></div>
-  <div class="set" style="align-items:center"><div class="t"><b>Testar sons</b></div><button class="btn sm" data-act="testCount">Contagem</button><button class="btn sm" data-act="testStart">Início</button></div>
+  <div class="set"><div class="t"><b>Som do fim do descanso</b><span class="muted small">Toca quando o descanso termina.</span></div><select data-act-change="setsel" data-k="restSound" aria-label="Som do fim do descanso" style="width:140px">${selOpts([['bipe3', 'Bipe triplo'], ['sino', 'Sino de ringue'], ['apito', 'Apito'], ['gongo', 'Gongo'], ['campainha', 'Campainha'], ['buzina', 'Buzina'], ['arpejo', 'Fanfarra curta'], ['tambor', 'Tambor'], ['vai', 'Largada (bip-bip-biiip)'], ['bipe', 'Bipe']], s.restSound || 'bipe3')}</select></div>
+  <div class="set" style="align-items:center"><div class="t"><b>Testar sons</b></div><button class="btn sm" data-act="testRest">Descanso</button><button class="btn sm" data-act="testCount">Contagem</button><button class="btn sm" data-act="testStart">Início</button></div>
   ${NAT ? '' : tg('mediaCtl', 'Controles na notificação (experimental)', 'Durante o treino, mostra série, reps e carga na notificação de mídia do celular, com Próximo, Voltar e Pausa. Depende do navegador permitir. Atenção: pode pausar o Spotify, porque o celular só mostra um player de mídia por vez.')}
   ${tg('autoBackup', 'Backup automático no Drive', 'Ao terminar cada treino, faz o backup sem perguntar. Sem rede, espera e tenta de novo sozinho.')}
   ${tg('smart', 'Sugestão inteligente', 'Preenche reps e carga com o que você fez da última vez no exercício.')}</div>
   <p class="muted small">Peso, gordura e medidas ficam na aba Corpo e entram no cálculo de calorias.</p>
-  <div class="sec"><h2>Dados</h2><div class="card"><div class="set"><div class="t"><b>Sincronização</b><span class="muted small">${esc(natDrive() ? (S.settings.lastDrive ? 'Backup automático no Google Drive' : 'Google Drive ainda não usado') : cloudMsg)}${pend.sess.length ? ` · ${pend.sess.length} treino(s) esperando rede` : ''}${pend.backup ? ' · backup pendente' : ''}${S.settings.lastDrive ? ` · último backup no Drive: ${new Date(S.settings.lastDrive).toLocaleString('pt-BR')}` : ''}</span></div><button class="btn sm" data-act="syncForce">Sincronizar agora</button></div></div>
+  <div class="sec"><h2>Dados</h2><div class="card"><div class="set"><div class="t"><b>Sincronização</b><span class="muted small">${esc(natDrive() ? (S.settings.lastDrive ? 'Backup automático no Google Drive' : 'Google Drive ainda não usado') : cloudMsg)}${pend.sess.length ? ` · ${pend.sess.length} treino(s) esperando rede` : ''}${pend.backup ? ' · backup pendente' : ''}${S.settings.lastDrive ? ` · último backup no Drive: ${new Date(S.settings.lastDrive).toLocaleString('pt-BR')}` : ''}</span></div>${natDrive() ? '' : '<button class="btn sm" data-act="syncForce">Sincronizar agora</button>'}</div></div>
   ${inClaude() ? '' : natDrive() ? '<p class="muted small">Os dados ficam salvos no aparelho, sem internet. O backup vai para uma pasta do app no seu Google Drive; sem rede, ele espera e sai sozinho quando a conexão voltar.</p>' : '<p class="muted small">Versão instalada no celular: os dados ficam salvos no aparelho, sem internet. Para backup, use "Baixar arquivo" e mande o arquivo para você no WhatsApp ou para o Drive.</p>'}<div class="card" style="margin-top:12px${inClaude() || natDrive() ? '' : ';display:none'}"><div class="set" style="align-items:center"><div class="t"><b>Google Drive</b><span class="muted small">Salva uma cópia completa (rotinas, histórico, corpo, ajustes) na sua conta do Drive.</span></div></div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;padding:0 14px 14px"><button class="btn sm primary" data-act="driveSave">Salvar no Drive</button><button class="btn sm" data-act="driveList">Restaurar do Drive</button></div></div>
   <div class="card" style="margin-top:10px"><div class="set"><div class="t"><b>Arquivo no aparelho</b><span class="muted small">Baixa um arquivo .json que você pode guardar onde quiser.</span></div></div>
@@ -1795,7 +1796,8 @@ const COUNT_SND = {
 function countSnd(n) {
   if (!S.settings.sound || S.settings.countMode === 'off') return;
   const m = S.settings.countMode;
-  if (m === 'voz' && 'speechSynthesis' in window) return say(n);
+  if (m === 'voz' && natP('FerroNotif') && natP('FerroNotif').speak) { try { natP('FerroNotif').speak({text: String(n)}); } catch (e) {} return; }
+  if (m === 'voz' && 'speechSynthesis' in window && speechSynthesis.getVoices().length) return say(n);
   if (COUNT_SND[m]) { try { COUNT_SND[m](n); holdAudio(run && run.phase === 'prepare' ? 4000 : 1200); } catch (e) {} return; }
   tickSnd();
 }
@@ -1819,6 +1821,14 @@ const START_SND = {
   tambor: () => { [0, .16].forEach(at => { tone(150, .25, {vol: .5, at, glide: 55}); noiseHit(.12, 1800, .35, at); }); return 1000; },
   vai: () => { tone(880, .12, {type: 'square', vol: .08}); tone(880, .12, {type: 'square', vol: .08, at: .16}); tone(1760, .45, {type: 'square', vol: .09, at: .32}); return 1300; }
 };
+/* toca um som pelo nome (mesma lista do Android); devolve quanto tempo segurar o áudio */
+function playSnd(k) {
+  if (k === 'bipe3') { beep(3); return 0; } if (k === 'bipe') { beep(1); return 0; }
+  if (k === 'sino') { bell(); holdAudio(2600); return 2600; } if (k === 'apito') { whistle(); holdAudio(1500); return 1500; }
+  if (START_SND[k]) { const ms = START_SND[k](); holdAudio(ms); return ms; }
+  beep(1); return 0;
+}
+function restEndSound() { if (!S.settings.sound) return; try { playSnd(S.settings.restSound || 'bipe3'); } catch (e) {} }
 function startSound() { if (!S.settings.sound) return; try { const k = S.settings.startSound; if (k === 'sino') { bell(); holdAudio(2600); } else if (k === 'apito') { whistle(); holdAudio(1500); } else if (START_SND[k]) holdAudio(START_SND[k]()); else beep(1); } catch (e) {} }
 
 /* ---------- controles na notificação (Media Session) ---------- */
@@ -1885,7 +1895,7 @@ function natAct(raw) {
   runDue();   // põe o treino em dia antes de obedecer ao toque
   // o toque foi numa notificação atrasada (a fase já mudou sozinha): não aplica, só atualiza, para não pular nem reabrir série sem querer
   if (stamp && +stamp !== run.phaseStart && (id === 'next' || id === 'back')) { natLast = ''; clearTimeout(natT); natPush(); if (view.n === 'run') render(); return; }
-  if (id === 'next') runNext(); else if (id === 'back') runBack(); else if (id === 'pause') H.pauseBtn(); else if (id === 'plus') H.restPlus();
+  if (id === 'next') runNext(); else if (id === 'back') runBack(); else if (id === 'pause') H.pauseBtn(); else if (id === 'plus') addTime();
   natLast = ''; clearTimeout(natT); natPush(); if (view.n === 'run') render();
 }
 function natActions(P, pz) {
@@ -1893,38 +1903,40 @@ function natActions(P, pz) {
   return pz ? [A.back, {id: 'pause', label: 'Continuar', icon: 'play', primary: true}, {id: 'next', label: 'Próximo', icon: 'skip'}]
     : P === 'rest' ? [{id: 'plus', label: '+15 s', icon: 'plus'}, A.pause, {id: 'next', label: 'Pular', icon: 'skip', primary: true}]
     : P === 'exec' ? [A.back, A.pause, {id: 'next', label: 'Feito', icon: 'check', primary: true}]
-    : P === 'prepare' ? [A.back, A.pause, {id: 'next', label: 'Começar', icon: 'play', primary: true}]
+    : P === 'prepare' ? [A.back, {id: 'plus', label: '+10 s', icon: 'plus'}, {id: 'next', label: 'Começar', icon: 'play', primary: true}]
+    : P === 'wait-rest' ? [{id: 'plus', label: '+15 s', icon: 'plus'}, A.pause, {id: 'next', label: 'Começar', icon: 'play', primary: true}]
+    : P === 'wait-prepare' ? [{id: 'plus', label: '+10 s', icon: 'plus'}, A.pause, {id: 'next', label: 'Começar', icon: 'play', primary: true}]
     : [A.pause, {id: 'next', label: 'Começar', icon: 'play', primary: true}];
 }
 /* sequência de avisos que o Android executa sozinho, sem depender da página estar rodando */
 function natSteps(T) {
-  const ex = curEx(), body = `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`, timed = ex.type === 'time', st = ex.sets[run.setIdx] || {};
-  const execPatch = at => ({label: timed ? 'SEGURE A POSIÇÃO' : 'EXECUTANDO', color: NCOL.exec, chrono: timed ? 'down' : 'up', endAt: timed ? at + (st.secs || 30) * 1000 : 0, startAt: at, paused: false, actions: natActions('exec', false)});
-  const rems = from => !(+S.settings.remindEvery > 0) ? [] : Array.from({length: 6}, (_, k) => ({at: from + (k + 1) * remMs(), title: 'Hora da série', body, sound: 'bell', rem: true, from}));
+  const ex = curEx(), body = `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`;
+  const rs = 'snd:' + (S.settings.restSound || 'bipe3'), ss = 'snd:' + (S.settings.startSound || 'sino');
+  const waitPatch = (at, ph) => ({label: 'HORA DE COMEÇAR', color: NCOL.prepare, chrono: 'down', endAt: at, paused: false, actions: natActions('wait-' + ph, false)});
+  const rems = from => !(+S.settings.remindEvery > 0) ? [] : Array.from({length: 6}, (_, k) => ({at: from + (k + 1) * remMs(), title: 'Hora de começar', body, sound: ss, rem: true, from}));
+  const voice = endAt => S.settings.countMode === 'voz' ? [3, 2, 1].map(n => ({at: endAt - n * 1000, say: String(n), silent: true})) : [];
   const steps = [];
   if (run.phase === 'rest') {
-    const pr = curPrep(), cont = S.settings.continuous;
-    if (cont && pr > 0) { steps.push({at: T, title: 'Fim do descanso', body, sound: 'beep3', notif: {label: 'PREPARE-SE', color: NCOL.prepare, chrono: 'down', endAt: T + pr * 1000, paused: false, actions: natActions('prepare', false)}}); const T2 = T + pr * 1000; steps.push({at: T2, title: 'Começar a série', body, sound: 'bell', notif: execPatch(T2)}); if (!timed) steps.push(...rems(T2)); }
-    else if (cont) { steps.push({at: T, title: 'Fim do descanso', body, sound: 'bell', notif: execPatch(T)}); if (!timed) steps.push(...rems(T)); }
-    else { steps.push({at: T, title: 'Fim do descanso', body, sound: 'beep3'}); steps.push(...rems(T)); }
-  } else if (run.phase === 'prepare') {
-    if (S.settings.continuous) { steps.push({at: T, title: 'Começar a série', body, sound: 'bell', notif: execPatch(T)}); if (!timed) steps.push(...rems(T)); }
-    else { steps.push({at: T, title: 'Começar a série', body, sound: 'bell'}); steps.push(...rems(T)); }
-  } else steps.push({at: T, title: 'Tempo da série terminou', body, sound: 'beep3'});
+    const pr = curPrep();
+    if (S.settings.continuous && pr > 0) { const T2 = T + pr * 1000; steps.push({at: T, title: 'Fim do descanso', body, sound: rs, notif: {label: 'PREPARE-SE', color: NCOL.prepare, chrono: 'down', endAt: T2, paused: false, actions: natActions('prepare', false)}}, ...voice(T2), {at: T2, title: 'Hora de começar', body, sound: ss, notif: waitPatch(T2, 'prepare')}, ...rems(T2)); }
+    else steps.push({at: T, title: 'Fim do descanso', body, sound: rs, notif: waitPatch(T, 'rest')}, ...rems(T));
+  } else if (run.phase === 'prepare') steps.push(...voice(T).filter(x => x.at > Date.now() + 300), {at: T, title: 'Hora de começar', body, sound: ss, notif: waitPatch(T, 'prepare')}, ...rems(T));
+  else steps.push({at: T, title: 'Tempo da série terminou', body, sound: 'snd:bipe3'});
+  steps.sort((x, y) => x.at - y.at);
   return steps;
 }
 const NCOL = {warmup: '#46BF78', prepare: '#E6B422', exec: '#F0654D', rest: '#4D96E8', paused: '#97A3B0'};
 function natPayload() {
   const ex = curEx(), st = ex.sets[run.setIdx] || {}, v = phaseView(), P = run.phase, pz = !!run.pausedAt;
-  const label = pz ? 'PAUSADO' : {warmup: 'AQUECIMENTO', prepare: 'PREPARE-SE', exec: ex.type === 'time' ? 'SEGURE A POSIÇÃO' : 'EXECUTANDO', rest: 'DESCANSO · PRÓXIMA SÉRIE'}[P] || '';
+  const label = pz ? 'PAUSADO' : isWaiting() ? 'HORA DE COMEÇAR' : {warmup: 'AQUECIMENTO', prepare: 'PREPARE-SE', exec: ex.type === 'time' ? 'SEGURE A POSIÇÃO' : 'EXECUTANDO', rest: 'DESCANSO · PRÓXIMA SÉRIE'}[P] || '';
   const load = ex.type === 'time' ? `${st.secs} s` : `${fmtN(st.reps)} reps  ·  ${fmtN(st.kg)} kg  ·  ${f1(st.kg * LB)} lb  ·  RIR ${st.rir ?? S.settings.defaultRir}`;
   const nx = nextTargetFrom(run.exIdx), nxName = nx && nx[0] !== run.exIdx ? run.exs[nx[0]].name : '';
   const tp = st.tempo || ex.tempo;
   const line2 = [tp && ex.type !== 'time' ? `Cadência ${tp}` : '', `Exercício ${run.exIdx + 1} de ${run.exs.length}`, nxName && ex.sets.filter(x => !x.done).length <= 1 ? `depois: ${nxName}` : ''].filter(Boolean).join('  ·  ');
-  const actions = natActions(P, pz);
+  const actions = natActions(isWaiting() ? 'wait-' + P : P, pz);
   actions.forEach(a => { if (a.id === 'next' || a.id === 'back') a.id += ':' + run.phaseStart; });
   const o = {label, color: NCOL[pz ? 'paused' : P] || '#F0654D', title: exLabel(ex), line1: `${cap1(setNo(ex, run.setIdx).txt)}  ·  ${load}`, line2, actions};
-  if (v.count) { o.chrono = 'down'; if (pz) o.shownMs = Math.max(0, v.rem); else o.endAt = Math.round((Date.now() + v.rem) / 1000) * 1000; }
+  if (v.count) { o.chrono = 'down'; if (pz) o.shownMs = Math.max(0, v.rem); else o.endAt = Math.round((Date.now() + v.rem - overMs()) / 1000) * 1000; }
   else { o.chrono = 'up'; if (pz) o.shownMs = v.el; else o.startAt = run.phaseStart; }
   o.paused = pz;
   return o;
@@ -1971,16 +1983,16 @@ function natClearAlert() { const fn = natP('FerroNotif'); if (fn && fn.clearAler
 async function natAlarmSync(end) {
   const ln = natP('LocalNotifications'), fn = natP('FerroNotif'); if (!ln && !fn) return;
   let want = (end && end - Date.now() > 800) ? Math.round(end / 1000) * 1000 : 0, steps = null;
-  if (!want && run && run.remind && run.phase === 'exec' && !run.pausedAt) {   // lembretes que faltam
+  if (!want && run && run.remind && (run.phase === 'rest' || run.phase === 'prepare') && !run.pausedAt) {   // lembretes que faltam
     const r = run.remind, list = Array.from({length: r.n}, (_, k) => r.from + (7 - r.n + k) * remMs()).filter(t => t > Date.now() + 300);
-    if (list.length) { const ex = curEx(), body = `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`; steps = list.map(t => ({at: t, title: 'Hora da série', body, sound: 'bell', rem: true, from: r.from})); want = list[0]; }
+    if (list.length) { const ex = curEx(), body = `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`; steps = list.map(t => ({at: t, title: 'Hora de começar', body, sound: 'snd:' + (S.settings.startSound || 'sino'), rem: true, from: r.from})); want = list[0]; }
   }
   if (want === natAlarm) return;
   natAlarm = want;
   if (fn && fn.alarm) {
     try {
       if (!want) { await fn.cancelAlarm(); return; }
-      if (fn.show) { await fn.alarm({at: want, steps: JSON.stringify(steps || natSteps(want))}); return; }
+      if (fn.show) { const st = steps || natSteps(want); await fn.alarm({at: st[0].at, steps: JSON.stringify(st)}); return; }
       const ex = curEx();
       const o = {at: want, title: run.phase === 'rest' ? 'Fim do descanso' : run.phase === 'prepare' ? 'Começar a série' : 'Tempo da série terminou', body: `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`, sound: run.phase === 'prepare' ? 'bell' : 'beep3'};
       if (run.phase === 'rest' && S.settings.continuous && curPrep() > 0) { o.nextAt = want + curPrep() * 1000; o.nextTitle = 'Começar a série'; o.nextBody = o.body; o.nextSound = 'bell'; }   // o apito do preparo sai mesmo se a página estiver parada
@@ -2079,7 +2091,7 @@ function setPhase(p) {
   if (run.phase !== 'done') run.tot[run.phase] += elapsed();
   const prev = run.phase; run.phase = p; run.phaseStart = Date.now(); run.pausedAt = null; run.fired = 0; if (p !== 'prepare') run.prepOv = null;
   if (p === 'exec' && prev !== 'exec' && !run.sndDone) startSound();
-  if (p !== 'exec' && run.remind && p !== run.phase) run.remind = null;
+  if (p !== prev) run.remind = null;
   if (p === 'prepare' && S.settings.sound && S.settings.countMode !== 'off' && audio && !natQuiet()) { try { ac(); holdAudio(curPrep() * 1000 + 3500); } catch (e) {} }
   run.sndDone = false; run.peek = false;
   if (p === 'rest') run.restTotal = (curEx() ? curEx().rest : S.settings.defaultRest) * 1000;
@@ -2147,7 +2159,7 @@ function runNext() {
   if (!run || run.phase === 'done') return;
   const ph = run.phase;
   if (ph === 'warmup') setPhase(prepPh());
-  else if (ph === 'prepare') setPhase('exec');
+  else if (ph === 'prepare') { const ov = overMs(); setPhase('exec'); if (ov > 0) { run.tot.prepare = Math.max(0, run.tot.prepare - ov); run.tot.rest += ov; } }
   else if (ph === 'exec') {
     const s = curEx().sets[run.setIdx]; s.done = true; s.actual = Math.round(elapsed() / 1000);
     const t = nextTarget();
@@ -2193,18 +2205,19 @@ function phaseView() {
   if (P === 'exec') { if (ex.type === 'time') { count = true; const total = s.secs * 1000; rem = Math.max(0, total - el); prog = el / total; } }
   return {P, color, big, count, rem, prog: Math.min(1, prog), el, s, ex};
 }
+function bigTxt(v) { const ov = overMs(); if (ov > 0 && v.count) return '−' + mmss(Math.floor(ov / 1000) * 1000); return v.P === 'prepare' ? pad(Math.ceil(v.rem / 1000)) : mmss(Math.ceil(v.rem / 1000) * 1000); }
 function sheetHtml() {
   const v = phaseView(), P = v.P;
-  const label = {warmup: 'Aquecimento', prepare: 'Prepare-se!', exec: v.ex.type === 'time' ? 'Segure a posição' : 'Faça o exercício', rest: 'Descanso'}[P];
+  const wait = isWaiting(), label = wait ? 'Hora de começar · toque em Começar' : {warmup: 'Aquecimento', prepare: 'Prepare-se!', exec: v.ex.type === 'time' ? 'Segure a posição' : 'Faça o exercício', rest: 'Descanso'}[P];
   const timeBlock = v.count
-    ? `<span class="big num" id="pbig">${P === 'prepare' ? pad(Math.ceil(v.rem / 1000)) : mmss(Math.ceil(v.rem / 1000) * 1000)}</span><span class="cap"><i class="dot"></i>${label}${P === 'rest' ? ` · próxima: ${esc(curEx().name)}` : ''}</span>${restSplit() ? `<button class="peekbtn" data-act="peekNext">${run.peek ? '← Voltar ao exercício que terminou' : 'Ver o próximo exercício →'}</button>` : ''}`
+    ? `<span class="big num" id="pbig">${bigTxt(v)}</span><span class="cap"><i class="dot"></i>${label}${P === 'rest' && !wait ? ` · próxima: ${esc(curEx().name)}` : ''}</span>${restSplit() ? `<button class="peekbtn" data-act="peekNext">${run.peek ? '← Voltar ao exercício que terminou' : 'Ver o próximo exercício →'}</button>` : ''}`
     : `<span class="tt">Vamos lá!</span><span class="cap"><i class="dot"></i>${label} <b class="num" id="pbig">${mmss(v.el)}</b></span>`;
   const back = (P === 'exec' || P === 'prepare' || P === 'rest') ? `<button class="btn ghost back" data-act="rbackBtn">Voltar</button>` : '';
-  const extra = P === 'rest' ? `<button class="ibsq" data-act="restPlus" aria-label="Mais 15 segundos"><b class="disp">+15</b></button>` : '';
+  const extra = P === 'rest' || P === 'prepare' ? `<button class="ibsq" data-act="restPlus" aria-label="${P === 'rest' ? 'Mais 15 segundos de descanso' : 'Mais 10 segundos de preparo'}"><b class="disp">${P === 'rest' ? '+15' : '+10'}</b></button>` : '';
   const pz = `<button class="ibsq" data-act="pauseBtn" aria-label="${run.pausedAt ? 'Continuar' : 'Pausar'}">${ic(run.pausedAt ? 'play' : 'pause')}</button>`;
   let rirRow = '';
   if (P === 'rest' && run.prevPtr) { const pe = run.exs[run.prevPtr[0]], ps = pe && pe.sets[run.prevPtr[1]]; if (ps && pe.type !== 'time' && !ps.warm) rirRow = `<div class="rirpick"><span>RIR da série que terminou:</span>${[0, 1, 2, 3, 4, 5].map(n => `<button class="${!ps.rirU && (ps.rir ?? -1) === n ? 'on' : ''}" data-act="rirPick" data-v="${n}">${n === 5 ? '5+' : n}</button>`).join('')}<button class="${ps.rirU ? 'on' : ''}" data-act="rirPick" data-v="u" aria-label="Não sei o RIR">?</button></div>`; }
-  return `<div class="p-${P}" style="--ph:${v.color}"><div class="bar" id="pbar" style="width:${Math.round(v.prog * 100)}%"></div><div class="ph">${timeBlock}</div>${rirRow}<div class="row">${pz}${extra}${back}<button class="btn primary" data-act="rnext">${P === 'rest' ? 'Pular' : 'Próximo'}</button></div></div>`;
+  return `<div class="p-${P}" style="--ph:${v.color}"><div class="bar" id="pbar" style="width:${Math.round(v.prog * 100)}%"></div><div class="ph">${timeBlock}</div>${rirRow}<div class="row">${pz}${extra}${back}<button class="btn primary" data-act="rnext">${isWaiting() ? 'Começar' : P === 'rest' ? 'Pular' : P === 'prepare' ? 'Começar' : 'Próximo'}</button></div></div>`;
 }
 function runView() {
   if (run.phase === 'done') return summaryView();
@@ -2457,12 +2470,22 @@ function render() {
 function tickSheet() {
   if (!run || run.phase === 'done') return;
   const v = phaseView(), big = $('#pbig'), bar = $('#pbar');
-  if (big) big.textContent = v.count ? (v.P === 'prepare' ? pad(Math.ceil(v.rem / 1000)) : mmss(Math.ceil(v.rem / 1000) * 1000)) : mmss(v.el);
+  if (big) big.textContent = v.count ? bigTxt(v) : mmss(v.el);
   if (bar) bar.style.width = Math.round(v.prog * 100) + '%';
 }
 /* fase com tempo vencido (descanso, preparo, série por tempo): avança. Com o app em segundo plano o relógio da página
    pode atrasar ou parar; o alarme nativo e os toques na notificação chamam isto para o treino nunca ficar para trás */
 const natQuiet = () => NAT && (!natFg || document.visibilityState === 'hidden');   // em segundo plano quem toca é o alarme nativo
+/* quanto a fase atual (descanso/preparo) já passou do tempo */
+function addTime() {
+  if (!run) return; const el = elapsed(); remindStop();
+  if (run.phase === 'rest') run.restTotal = Math.max(run.restTotal, el) + 15000;
+  else if (run.phase === 'prepare') run.prepOv = Math.ceil(Math.max(curPrep() * 1000, el) / 1000) + 10;
+  else return;
+  run.fired = 0; natAlarm = -1; persistRun(); if (view.n === 'run') render(); toast(run.phase === 'rest' ? '+15 s de descanso' : '+10 s de preparo');
+}
+function overMs() { if (!run || (run.phase !== 'rest' && run.phase !== 'prepare')) return 0; const el = elapsed(); return Math.max(0, el - (run.phase === 'rest' ? run.restTotal : Math.max(1, curPrep()) * 1000)); }
+const isWaiting = () => !!(run && (run.phase === 'rest' || run.phase === 'prepare') && run.fired === run.phaseStart && overMs() > 0);
 function runDue() {
   let moved = false;
   for (let k = 0; k < 4; k++) {
@@ -2471,14 +2494,14 @@ function runDue() {
     if (!(v.count && v.rem <= 0 && run.fired !== run.phaseStart)) break;
     run.fired = run.phaseStart;
     const P0 = v.P, over = Math.max(0, v.el - (P0 === 'rest' ? run.restTotal : P0 === 'prepare' ? Math.max(1, curPrep()) * 1000 : ((v.s && v.s.secs) || 0) * 1000)), endAt = Date.now() - over, quiet = natQuiet() || over > 4000;
-    if (!quiet) { if (P0 === 'prepare') { startSound(); run.sndDone = true; } else { beep(P0 === 'rest' ? 3 : 2); if (P0 === 'rest') buzz(); } if (P0 === 'exec') buzz(); }
-    else if (P0 === 'prepare') run.sndDone = true;
-    if (!S.settings.continuous) { if (P0 === 'rest' || P0 === 'prepare') remindStart(endAt); break; }
-    if (P0 === 'prepare' || (P0 === 'rest' && prepPh() === 'exec')) run.sndDone = true;
+    if (!quiet) { if (P0 === 'prepare') startSound(); else if (P0 === 'rest') { restEndSound(); buzz(); } else { beep(2); buzz(); } }
+    if (P0 === 'prepare') run.sndDone = true;
+    // a execução só começa com um toque: descanso/preparo vencidos ficam esperando, com o tempo negativo (conta como descanso)
+    if (P0 !== 'exec' && (P0 === 'prepare' || prepPh() === 'exec' || !S.settings.continuous)) { remindStart(endAt); moved = true; break; }
+    if (P0 === 'exec' && !S.settings.continuous) break;
     runNext(); moved = true;
     if (run && run.phase !== 'done') {
       if (over > 0) { run.tot[P0] = Math.max(0, (run.tot[P0] || 0) - over); run.phaseStart = endAt; if (run.phase === 'rest') run.restTotal = run.restTotal; }
-      if (run.phase === 'exec' && !(curEx().type === 'time')) remindStart(endAt);
     }
   }
   return moved;
@@ -2492,9 +2515,9 @@ setInterval(() => {
   if (!run || run.phase === 'done' || run.pausedAt) return;
   const v = phaseView();
   if (v.P === 'prepare' && v.count && !(NAT && document.visibilityState === 'hidden')) { const sl = Math.ceil(v.rem / 1000), key = run.phaseStart + ':' + sl; if (sl >= 1 && sl <= S.settings.countFrom && run.lastCount !== key) { run.lastCount = key; countSnd(sl); } }
-  if (runDue()) { if (NAT) { natLast = ''; natPush(); } return; }
-  if (run.remind && run.phase === 'exec' && !natQuiet()) { const due = run.remind.from + (7 - run.remind.n) * remMs(); if (Date.now() >= due) { startSound(); if (--run.remind.n <= 0) run.remind = null; } }
-  else if (run.remind && run.phase !== 'exec' && run.phase !== 'rest' && run.phase !== 'prepare') run.remind = null;
+  if (runDue()) { if (NAT) { natLast = ''; natPush(); } if (view.n === 'run') render(); return; }
+  if (run.remind && (run.phase === 'rest' || run.phase === 'prepare') && !natQuiet()) { const due = run.remind.from + (7 - run.remind.n) * remMs(); if (Date.now() >= due) { startSound(); if (--run.remind.n <= 0) run.remind = null; } }
+  else if (run.remind && run.phase !== 'rest' && run.phase !== 'prepare') run.remind = null;
   if (view.n !== 'run') { const mt = $('#mrt'); if (mt) mt.textContent = miniTxt().t; }
   if (view.n === 'run') tickSheet(); else if (view.n === 'runstats') { const b = $('#statsBody'); if (b) b.innerHTML = statsBody(runStats()); }
 }, 250);
@@ -2575,7 +2598,8 @@ const H = {
   resume: () => { mediaStart(); if (run.pausedAt) { run.phaseStart += Date.now() - run.pausedAt; run.pausedAt = null; } view = {n: 'run'}; stack = [{n: 'home'}]; render(); },
   rnext: () => runNext(), rbackBtn: () => runBack(),
   pauseBtn: () => { if (run.pausedAt) { run.phaseStart += Date.now() - run.pausedAt; run.pausedAt = null; } else run.pausedAt = Date.now(); persistRun(); const sh = $('#sheet'); if (sh) sh.firstElementChild.innerHTML = sheetHtml(); },
-  restPlus: () => { run.restTotal += 15000; run.fired = 0; persistRun(); tickSheet(); },
+  restPlus: () => { addTime(); },
+  testRest: () => restEndSound(),
   runStats: () => { stack.push({n: 'run'}); view = {n: 'runstats'}; render(); window.scrollTo(0, 0); },
   closeRun: () => run.phase === 'done' ? H.discardRun() : modal(`<h2>Encerrar treino?</h2><div style="display:flex;flex-direction:column;gap:10px"><button class="btn primary" data-act="endSave">Encerrar e ver o resumo</button><button class="btn danger" data-act="discardRun">Descartar treino</button><button class="btn" data-act="closeModal">Continuar treinando</button></div>`),
   endSave: () => { closeModal(); if (!runStats().done) return H.discardRun(); abortExec(); finishRun(); },

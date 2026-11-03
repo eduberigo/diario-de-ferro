@@ -29,6 +29,8 @@ public class FerroAlarmReceiver extends BroadcastReceiver {
                 body = cur.optString("body", "");
                 sound = cur.optString("sound", "beep3");
                 silent = cur.optBoolean("silent", false);
+                String sayTxt = cur.optString("say", "");
+                if (!sayTxt.isEmpty() && !FerroNotifPlugin.fg) FerroNotifPlugin.say(app, sayTxt);
                 if (cur.has("notif")) FerroNotifPlugin.applyPatch(app, cur.getJSONObject("notif"));
                 if (steps.length() > 1) {
                     JSONArray restA = new JSONArray();

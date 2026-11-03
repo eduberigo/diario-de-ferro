@@ -46,6 +46,13 @@
         </provider>
     </application>
 
+    <!-- voz do Android (contagem regressiva falada) -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />

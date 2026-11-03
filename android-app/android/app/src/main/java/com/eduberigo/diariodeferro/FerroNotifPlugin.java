@@ -55,6 +55,50 @@ public class FerroNotifPlugin extends Plugin {
     public void load() {
         instance = this;
         createChannel(getContext());
+        ttsInit(getContext());
+    }
+
+    // ---------- voz do Android para a contagem regressiva (a página não tem voz dentro do app) ----------
+    static android.speech.tts.TextToSpeech tts;
+    static volatile boolean ttsOk = false;
+
+    static void ttsInit(Context ctx) {
+        if (tts != null) return;
+        try {
+            tts = new android.speech.tts.TextToSpeech(ctx.getApplicationContext(), st -> {
+                if (st == android.speech.tts.TextToSpeech.SUCCESS && tts != null) {
+                    tts.setLanguage(new java.util.Locale("pt", "BR"));
+                    tts.setSpeechRate(1.15f);
+                    tts.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build());
+                    ttsOk = true;
+                }
+            });
+        } catch (Exception ignored) {}
+    }
+
+    static void say(Context ctx, String text) {
+        ttsInit(ctx);
+        if (!ttsOk || text == null || text.isEmpty()) return;
+        try {
+            android.os.Bundle b = new android.os.Bundle();
+            b.putFloat(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_VOLUME, 1f);
+            tts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, b, "ferro");
+        } catch (Exception ignored) {}
+    }
+
+    @PluginMethod
+    public void speak(PluginCall call) {
+        say(getContext(), call.getString("text", ""));
+        call.resolve();
+    }
+
+    /** som pelo nome: "snd:apito" = res/raw/ferro_s_apito.wav; "bell"/"beep3" = os antigos */
+    static int soundRes(Context ctx, String sound) {
+        if (sound != null && sound.startsWith("snd:")) {
+            int id = ctx.getResources().getIdentifier("ferro_s_" + sound.substring(4), "raw", ctx.getPackageName());
+            if (id != 0) return id;
+        }
+        return "bell".equals(sound) ? R.raw.ferro_bell : R.raw.ferro_beep3;
     }
 
     static void createChannel(Context ctx) {
@@ -176,7 +220,7 @@ public class FerroNotifPlugin extends Plugin {
         try {
             NotificationManagerCompat.from(ctx).notify(ALERT_ID, b.build());
         } catch (SecurityException ignored) {}
-        playWithDuck(ctx, "bell".equals(sound) ? R.raw.ferro_bell : R.raw.ferro_beep3, done);
+        playWithDuck(ctx, soundRes(ctx, sound), done);
     }
 
     @SuppressWarnings("deprecation")
