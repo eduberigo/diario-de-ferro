@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12161b">
-<script>window.FERRO_BUILD = '202611030102';</script>
+<script>window.FERRO_BUILD = '202611031654';</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -1923,18 +1923,18 @@ function natActions(P, pz) {
 }
 /* sequência de avisos que o Android executa sozinho, sem depender da página estar rodando */
 function natSteps(T) {
-  const ex = curEx(), body = `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`;
+  const ex = curEx(), body = `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`, timed = ex.type === 'time', st = ex.sets[run.setIdx] || {};
   const rs = 'snd:' + (S.settings.restSound || 'bipe3'), ss = 'snd:' + (S.settings.startSound || 'sino');
   const waitPatch = (at, ph) => ({label: 'HORA DE COMEÇAR', color: NCOL.prepare, chrono: 'down', endAt: at, paused: false, actions: natActions('wait-' + ph, false)});
-  const rems = from => !(+S.settings.remindEvery > 0) ? [] : Array.from({length: 6}, (_, k) => ({at: from + (k + 1) * remMs(), title: 'Hora de começar', body, sound: ss, rem: true, from}));
-  const voice = endAt => S.settings.countMode === 'voz' ? [3, 2, 1].map(n => ({at: endAt - n * 1000, say: String(n), silent: true})) : [];
+  const execPatch = at => ({label: timed ? 'SEGURE A POSIÇÃO' : 'EXECUTANDO', color: NCOL.exec, chrono: timed ? 'down' : 'up', endAt: timed ? at + (st.secs || 30) * 1000 : 0, startAt: at, paused: false, actions: natActions('exec', false)});
+  const rems = (from, s0) => !(+S.settings.remindEvery > 0) ? [] : Array.from({length: 6}, (_, k) => ({at: from + (k + 1) * remMs(), title: 'Hora de começar', body, sound: s0, rem: true, from}));
+  const voice = endAt => S.settings.countMode === 'voz' ? [3, 2, 1].map(n => ({at: endAt - n * 1000, say: String(n), silent: true})).filter(x => x.at > Date.now() + 300) : [];
   const steps = [];
-  if (run.phase === 'rest') {
-    const pr = curPrep();
-    if (S.settings.continuous && pr > 0) { const T2 = T + pr * 1000; steps.push({at: T, title: 'Fim do descanso', body, sound: rs, notif: {label: 'PREPARE-SE', color: NCOL.prepare, chrono: 'down', endAt: T2, paused: false, actions: natActions('prepare', false)}}, ...voice(T2), {at: T2, title: 'Hora de começar', body, sound: ss, notif: waitPatch(T2, 'prepare')}, ...rems(T2)); }
-    else steps.push({at: T, title: 'Fim do descanso', body, sound: rs, notif: waitPatch(T, 'rest')}, ...rems(T));
-  } else if (run.phase === 'prepare') steps.push(...voice(T).filter(x => x.at > Date.now() + 300), {at: T, title: 'Hora de começar', body, sound: ss, notif: waitPatch(T, 'prepare')}, ...rems(T));
-  else steps.push({at: T, title: 'Tempo da série terminou', body, sound: 'snd:bipe3'});
+  if (run.phase === 'rest') steps.push({at: T, title: 'Fim do descanso', body, sound: rs, notif: waitPatch(T, 'rest')}, ...rems(T, rs));   // espera o toque
+  else if (run.phase === 'prepare') {
+    if (S.settings.continuous) steps.push(...voice(T), {at: T, title: 'Começar a série', body, sound: ss, notif: execPatch(T)});   // emenda na execução
+    else steps.push(...voice(T), {at: T, title: 'Hora de começar', body, sound: ss, notif: waitPatch(T, 'prepare')}, ...rems(T, ss));
+  } else steps.push({at: T, title: 'Tempo da série terminou', body, sound: 'snd:bipe3'});
   steps.sort((x, y) => x.at - y.at);
   return steps;
 }
@@ -1998,7 +1998,7 @@ async function natAlarmSync(end) {
   let want = (end && end - Date.now() > 800) ? Math.round(end / 1000) * 1000 : 0, steps = null;
   if (!want && run && run.remind && (run.phase === 'rest' || run.phase === 'prepare') && !run.pausedAt) {   // lembretes que faltam
     const r = run.remind, list = Array.from({length: r.n}, (_, k) => r.from + (7 - r.n + k) * remMs()).filter(t => t > Date.now() + 300);
-    if (list.length) { const ex = curEx(), body = `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`; steps = list.map(t => ({at: t, title: 'Hora de começar', body, sound: 'snd:' + (S.settings.startSound || 'sino'), rem: true, from: r.from})); want = list[0]; }
+    if (list.length) { const ex = curEx(), body = `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`; steps = list.map(t => ({at: t, title: 'Hora de começar', body, sound: 'snd:' + (run.phase === 'rest' ? (S.settings.restSound || 'bipe3') : (S.settings.startSound || 'sino')), rem: true, from: r.from})); want = list[0]; }
   }
   if (want === natAlarm) return;
   natAlarm = want;
@@ -2510,7 +2510,8 @@ function runDue() {
     if (!quiet) { if (P0 === 'prepare') startSound(); else if (P0 === 'rest') { restEndSound(); buzz(); } else { beep(2); buzz(); } }
     if (P0 === 'prepare') run.sndDone = true;
     // a execução só começa com um toque: descanso/preparo vencidos ficam esperando, com o tempo negativo (conta como descanso)
-    if (P0 !== 'exec' && (P0 === 'prepare' || prepPh() === 'exec' || !S.settings.continuous)) { remindStart(endAt); moved = true; break; }
+    // só o fim do descanso espera o toque; o preparo emenda direto na execução
+    if (P0 === 'rest' || (P0 === 'prepare' && !S.settings.continuous)) { remindStart(endAt); moved = true; break; }
     if (P0 === 'exec' && !S.settings.continuous) break;
     runNext(); moved = true;
     if (run && run.phase !== 'done') {
@@ -2529,7 +2530,7 @@ setInterval(() => {
   const v = phaseView();
   if (v.P === 'prepare' && v.count && !(NAT && document.visibilityState === 'hidden')) { const sl = Math.ceil(v.rem / 1000), key = run.phaseStart + ':' + sl; if (sl >= 1 && sl <= S.settings.countFrom && run.lastCount !== key) { run.lastCount = key; countSnd(sl); } }
   if (runDue()) { if (NAT) { natLast = ''; natPush(); } if (view.n === 'run') render(); return; }
-  if (run.remind && (run.phase === 'rest' || run.phase === 'prepare') && !natQuiet()) { const due = run.remind.from + (7 - run.remind.n) * remMs(); if (Date.now() >= due) { startSound(); if (--run.remind.n <= 0) run.remind = null; } }
+  if (run.remind && (run.phase === 'rest' || run.phase === 'prepare') && !natQuiet()) { const due = run.remind.from + (7 - run.remind.n) * remMs(); if (Date.now() >= due) { if (run.phase === 'rest') restEndSound(); else startSound(); if (--run.remind.n <= 0) run.remind = null; } }
   else if (run.remind && run.phase !== 'rest' && run.phase !== 'prepare') run.remind = null;
   if (view.n !== 'run') { const mt = $('#mrt'); if (mt) mt.textContent = miniTxt().t; }
   if (view.n === 'run') tickSheet(); else if (view.n === 'runstats') { const b = $('#statsBody'); if (b) b.innerHTML = statsBody(runStats()); }
@@ -3020,7 +3021,7 @@ if (!inClaude() && navigator.storage && navigator.storage.persist) navigator.sto
 </script>
 
 <script>
-if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202611030102').catch(() => {});
+if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202611031654').catch(() => {});
 </script>
 </body>
 </html>
