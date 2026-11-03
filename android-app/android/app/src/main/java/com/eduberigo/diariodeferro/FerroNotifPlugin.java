@@ -69,7 +69,6 @@ public class FerroNotifPlugin extends Plugin {
                 if (st == android.speech.tts.TextToSpeech.SUCCESS && tts != null) {
                     tts.setLanguage(new java.util.Locale("pt", "BR"));
                     tts.setSpeechRate(1.15f);
-                    tts.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build());
                     ttsOk = true;
                 }
             });
@@ -80,6 +79,7 @@ public class FerroNotifPlugin extends Plugin {
         ttsInit(ctx);
         if (!ttsOk || text == null || text.isEmpty()) return;
         try {
+            tts.setAudioAttributes(attrsFor(ctx, true));
             android.os.Bundle b = new android.os.Bundle();
             b.putFloat(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_VOLUME, 1f);
             tts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, b, "ferro");
@@ -90,6 +90,32 @@ public class FerroNotifPlugin extends Plugin {
     public void speak(PluginCall call) {
         say(getContext(), call.getString("text", ""));
         call.resolve();
+    }
+
+    /** fone ou Bluetooth conectado? (aí o som vai só para eles, pelo canal de mídia) */
+    static boolean headset(Context ctx) {
+        AudioManager am = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
+        if (am == null) return false;
+        try {
+            for (android.media.AudioDeviceInfo d : am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
+                int t = d.getType();
+                if (t == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || t == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+                    || t == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET || t == android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES
+                    || t == android.media.AudioDeviceInfo.TYPE_USB_HEADSET) return true;
+                if (Build.VERSION.SDK_INT >= 31 && (t == android.media.AudioDeviceInfo.TYPE_BLE_HEADSET || t == android.media.AudioDeviceInfo.TYPE_BLE_SPEAKER)) return true;
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    /** sem fone: canal de alarme (alto, segue o volume de alarme); com fone/Bluetooth: canal de mídia, só no fone
+        (o Android toca alarme no alto-falante do celular também, mesmo com Bluetooth) */
+    static AudioAttributes attrsFor(Context ctx, boolean speech) {
+        boolean hs = headset(ctx);
+        return new AudioAttributes.Builder()
+            .setUsage(hs ? AudioAttributes.USAGE_MEDIA : AudioAttributes.USAGE_ALARM)
+            .setContentType(speech ? AudioAttributes.CONTENT_TYPE_SPEECH : AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build();
     }
 
     /** som pelo nome: "snd:apito" = res/raw/ferro_s_apito.wav; "bell"/"beep3" = os antigos */
@@ -226,11 +252,7 @@ public class FerroNotifPlugin extends Plugin {
     @SuppressWarnings("deprecation")
     static void playWithDuck(Context ctx, int res, Runnable done) {
         AudioManager am = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
-        // canal de alarme: segue o volume de alarme (não o de notificação, que costuma ficar baixo ou no silencioso)
-        AudioAttributes attrs = new AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ALARM)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build();
+        AudioAttributes attrs = attrsFor(ctx, false);
         final AudioFocusRequest req = Build.VERSION.SDK_INT >= 26
             ? new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).setAudioAttributes(attrs).setOnAudioFocusChangeListener(f -> {}).build()
             : null;
