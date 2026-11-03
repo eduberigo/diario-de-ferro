@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12161b">
-<script>window.FERRO_BUILD = '202611031705';</script>
+<script>window.FERRO_BUILD = '202611031800';</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -1416,7 +1416,7 @@ function adjE1(e) {
 }
 function adjView() {
   const e = run.exs[adj.i], done = e.sets.filter(x => x.done);
-  const prev = adj.rows ? `<div class="card" style="padding:4px 12px">${adj.rows.map((r, k) => `<div class="hset"><span class="sn" style="width:26px;height:26px;font-size:12px">${setNo({sets: done.concat(adj.rows)}, done.length + k).sn}</span><span style="flex:1"><b>${fmtN(r.kg)}</b> kg × <b>${fmtN(r.reps)}</b>${r.kind ? ` · ${r.kind === 'drop' ? 'drop' : 'rest-pause'}` : ''}</span><span class="muted small">${r.kind ? 'emenda' : (r.rest ?? adj.rest) + ' s'}</span></div>`).join('')}</div><p class="muted small" style="margin:0">${esc(adj.note || '')}${done.length ? ` · as ${done.length} série${done.length > 1 ? 's' : ''} já feita${done.length > 1 ? 's' : ''} não mudam` : ''}</p>` : '';
+  const prev = adj.rows ? `<div class="card" style="padding:4px 12px">${adj.rows.map((r, k) => `<div class="hset"><span class="sn" style="width:26px;height:26px;font-size:12px">${setNo({sets: done.concat(adj.rows)}, done.length + k).sn}</span><span style="flex:1"><b>${fmtN(r.kg)}</b> kg <span class="muted small">(${f1(r.kg * LB)} lb)</span> × <b>${fmtN(r.reps)}</b>${r.kind ? ` · ${r.kind === 'drop' ? 'drop' : 'rest-pause'}` : ''}</span><span class="muted small">${r.kind ? 'emenda' : (r.rest ?? adj.rest) + ' s'}</span></div>`).join('')}</div><p class="muted small" style="margin:0">${esc(adj.note || '')}${done.length ? ` · as ${done.length} série${done.length > 1 ? 's' : ''} já feita${done.length > 1 ? 's' : ''} não mudam` : ''}</p>` : '';
   modal(`<h2>Ajustar · só hoje</h2><p class="muted small" style="margin:0">${esc(exLabel(e))}. Vale para as séries que faltam neste treino; o treino oficial não muda.</p>
   <div class="fr"><div class="field"><label class="lbl" for="aj_t">Técnica</label><select id="aj_t">${selOpts(TECH, adj.tech)}</select></div><div class="field"><label class="lbl" for="aj_w">Aquecimento</label><select id="aj_w">${selOpts([[0, 'Nenhum'], [1, '1 série'], [2, '2 séries'], [3, '3 séries']], adj.warmN)}</select></div></div>
   <div class="fr"><div class="field"><label class="lbl" for="aj_r">Descanso (s)</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="aj_r" value="${adj.rest}"></div><div class="field"><label class="lbl" for="aj_p">Preparo (s)</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="aj_p" value="${adj.prep}"></div></div>
@@ -3031,7 +3031,7 @@ if (!inClaude() && navigator.storage && navigator.storage.persist) navigator.sto
 </script>
 
 <script>
-if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202611031705').catch(() => {});
+if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202611031800').catch(() => {});
 </script>
 </body>
 </html>
