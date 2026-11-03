@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12161b">
-<script>window.FERRO_BUILD = '202611031654';</script>
+<script>window.FERRO_BUILD = '202611031705';</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -147,7 +147,6 @@ body::before{content:'';position:fixed;left:0;right:0;top:0;height:max(env(safe-
 .setcard{flex:1;border:1.5px solid var(--line);border-radius:16px;min-height:84px;display:flex;align-items:center;justify-content:center;gap:14px;font:600 28px var(--display);color:var(--muted);width:100%}
 .setcard small{font:500 14px var(--body)}
 .setline.cur .setcard{border-color:var(--accent);color:var(--fg)}
-.sets[data-ph] .setline.cur .setcard{border-color:var(--ph);animation:curpulse 1s ease-in-out infinite}.sets[data-ph=paused] .setline.cur .setcard{animation:none}
 @keyframes curpulse{0%,100%{border-color:var(--ph);box-shadow:0 0 0 2px color-mix(in srgb,var(--ph) 45%,transparent)}50%{border-color:color-mix(in srgb,var(--ph) 30%,transparent);box-shadow:0 0 0 0 transparent}}
 @media (prefers-reduced-motion:reduce){.sets[data-ph] .setline.cur .setcard{animation:none}}
 .setline.done .setcard{opacity:.55}
@@ -309,6 +308,17 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .sacts button{width:84px;color:#fff;font-weight:600;font-size:13px}
 .sacts .sa1{background:var(--rest)}.sacts .sa2{background:#7a8591}.sacts .sa3{background:var(--danger)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* série ativa: no descanso, azul só na série que acabou; nas outras fases, vermelho na série valendo; pulsa 1 vez por segundo */
+.sets .setline.cur .setcard{animation:none;box-shadow:none}
+.sets[data-ph=rest] .setline.cur .setcard{border-color:var(--line)}
+.sets[data-ph=rest] .setline.cur .sn{background:var(--surface2);color:var(--fg)}
+.sets[data-ph=rest] .setline.beat .setcard{--lc:var(--rest);border-width:2px;animation:livepulse 1s ease-in-out infinite}
+.sets[data-ph=prepare] .setline.cur .setcard,.sets[data-ph=exec] .setline.cur .setcard,.sets[data-ph=warmup] .setline.cur .setcard{--lc:var(--exec);border-width:2px;animation:livepulse 1s ease-in-out infinite}
+.sets[data-ph=prepare] .setline.cur .sn,.sets[data-ph=exec] .setline.cur .sn{background:var(--exec);color:#fff}
+.sets[data-ph=paused] .setline .setcard{animation:none}
+@keyframes livepulse{0%,100%{border-color:var(--lc);box-shadow:0 0 0 4px color-mix(in srgb,var(--lc) 55%,transparent);background:color-mix(in srgb,var(--lc) 12%,transparent)}50%{border-color:color-mix(in srgb,var(--lc) 20%,var(--line));box-shadow:0 0 0 0 transparent;background:transparent}}
+@media (prefers-reduced-motion:reduce){.sets .setline .setcard{animation:none!important}}
 </style>
 <div id="app"></div>
 <div id="modal"></div>
@@ -2261,7 +2271,7 @@ function runView() {
   <div class="exhead">${tileOf(getEx(ex.exId)).replace('tile sm', 'tile')}<div class="t" data-act="openEx" data-id="${ex.exId}" data-vk="${esc(vkey(ex))}" style="cursor:pointer"><b style="text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:4px">${esc(exLabel(ex))}</b><span class="muted">${esc(ex.primary.concat(ex.secondary).join(', '))}</span>${techLab(ex) ? `<span class="techtag">${esc(techLab(ex))}</span>` : ''}</div></div>${ex.type !== 'time' ? `<button class="tempobar" data-act="runTempo">Cadência <b class="num">${ex.tempo || S.settings.tempo}</b> · ${tSec(ex.tempo || S.settings.tempo)} s por repetição <span style="margin-left:auto;color:var(--accent)">alterar</span></button>` : ''}
   <div class="acts"><button class="btn sm" data-act="subEx" data-i="${vi}">${ic('swap')} Substituir</button><button class="btn sm" data-act="noteEx">${ic('note')} ${ex.note ? 'Nota ✓' : 'Nota'}</button>${ex.type === 'time' ? '' : `<button class="btn sm" data-act="runAdj" data-i="${vi}">Ajustar</button>`}</div>
   ${run.warm && vi === 0 ? `<div class="warm ${run.phase === 'warmup' ? 'on' : ''}"><b>${ic('dumb').replace('<svg', '<svg ' + small)} Aquecimento</b><span class="muted small">Repetições livres • Carga leve</span></div>` : ''}
-  <div class="sets" ${vi === run.exIdx ? `data-ph="${run.pausedAt ? 'paused' : run.phase}" style="--ph:${run.pausedAt ? 'var(--muted)' : ({warmup: 'var(--warmup)', prepare: 'var(--prepare)', exec: 'var(--exec)', rest: 'var(--rest)'}[run.phase] || 'var(--accent)')}"` : ''}>${sets}</div>
+  <div class="sets" data-ph="${run.pausedAt ? 'paused' : run.phase}">${sets}</div>
   <button class="addset" data-act="addSet" data-i="${vi}">${ic('plus').replace('<svg', '<svg ' + small)} Adicionar série</button>
   <div class="sec" style="margin-top:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><h2 style="flex:1">Lista de exercícios</h2><button class="btn sm ${run.reorder ? 'primary' : ''}" data-act="reorder">${run.reorder ? 'Concluir ordem' : 'Reordenar'}</button></div><div class="card exlist">${list}</div><button class="addset" data-act="addRunEx" style="justify-content:center;width:100%">+ Adicionar exercício</button></div>
   <div style="height:150px"></div><div class="sheet" id="sheet"><div></div></div>`;
@@ -3021,7 +3031,7 @@ if (!inClaude() && navigator.storage && navigator.storage.persist) navigator.sto
 </script>
 
 <script>
-if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202611031654').catch(() => {});
+if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202611031705').catch(() => {});
 </script>
 </body>
 </html>
