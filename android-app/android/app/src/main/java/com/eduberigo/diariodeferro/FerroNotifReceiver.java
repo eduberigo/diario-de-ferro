@@ -9,6 +9,7 @@ public class FerroNotifReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context ctx, Intent intent) {
         String a = intent.getStringExtra("a");
+        FerroNotifPlugin.lastTouch = System.currentTimeMillis();   // qualquer toque para os lembretes
         FerroNotifPlugin p = FerroNotifPlugin.instance;
         if (a != null && p != null && p.getBridge() != null) p.fire(a);
     }

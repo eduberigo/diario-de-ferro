@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12161b">
-<script>window.FERRO_BUILD = '202610311955';</script>
+<script>window.FERRO_BUILD = '202611030003';</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -85,6 +85,7 @@ h2{font-size:22px}
 .rtog{flex:1;display:flex;align-items:center;gap:8px;text-align:left;color:var(--fg);min-width:0}.rtog h2{flex:1;min-width:0}.rtog svg{width:20px;height:20px;fill:none;stroke:var(--muted);stroke-width:2;flex:none}.routine.collapsed{opacity:.92}
 .pectl{display:grid;grid-template-columns:1fr auto;gap:6px;margin:10px 0 4px}.pectl select:first-child{grid-column:1/-1}.pectl select{min-width:0;padding-left:8px;padding-right:4px}
 .perow{display:grid;grid-template-columns:24px .8fr 1fr 1.1fr 60px 26px;gap:6px;align-items:center;margin-top:6px}.perow input{padding:8px 6px;text-align:center;min-width:0}
+.linkb{background:none;border:0;padding:4px 2px;color:var(--accent);font:600 12px var(--body)}
 .perest{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin:4px 32px 2px 0;font:500 12px var(--body);color:var(--muted);white-space:nowrap}.perest input{flex:0 0 64px;width:64px!important;min-width:0;padding:4px 6px;text-align:center;font-size:13px}
 .pfil{display:flex;gap:8px;align-items:center;margin:8px 0 2px}.pfil select{flex:1;min-width:0}.mchip.on{background:var(--accent);color:var(--on-accent)}
 .minirun{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(70px + env(safe-area-inset-bottom,0px));z-index:6;width:calc(100% - 20px);max-width:540px;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:16px;background:var(--surface);border:1.5px solid var(--ph);box-shadow:var(--shadow);text-align:left;color:var(--fg)}
@@ -146,6 +147,9 @@ body::before{content:'';position:fixed;left:0;right:0;top:0;height:max(env(safe-
 .setcard{flex:1;border:1.5px solid var(--line);border-radius:16px;min-height:84px;display:flex;align-items:center;justify-content:center;gap:14px;font:600 28px var(--display);color:var(--muted);width:100%}
 .setcard small{font:500 14px var(--body)}
 .setline.cur .setcard{border-color:var(--accent);color:var(--fg)}
+.sets[data-ph] .setline.cur .setcard{border-color:var(--ph);animation:curpulse 1s ease-in-out infinite}.sets[data-ph=paused] .setline.cur .setcard{animation:none}
+@keyframes curpulse{0%,100%{border-color:var(--ph);box-shadow:0 0 0 2px color-mix(in srgb,var(--ph) 45%,transparent)}50%{border-color:color-mix(in srgb,var(--ph) 30%,transparent);box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.sets[data-ph] .setline.cur .setcard{animation:none}}
 .setline.done .setcard{opacity:.55}
 .addset{color:var(--accent);font-weight:600;padding:14px 4px;display:flex;gap:8px;align-items:center}
 .exlist .exrow{padding:10px 12px}
@@ -610,7 +614,7 @@ function seed() {
   const ex = (exId, sets, repsMin, repsMax, kgMin, kgMax, variant = '') => ({id: uid(), exId, sets, repsMin, repsMax, kgMin, kgMax, secs: 30, rest: 60, variant, rir: Array(sets).fill(2)});
   return {
     v: 2, updatedAt: 0, equip: null,
-    settings: {continuous: true, sound: true, vibrate: true, prep: true, prepSec: 10, defaultRest: 60, weightKg: 84, smart: true, warmup: true, repUp: 2, repDown: 2, tempo: '2-0-2-0', theme: 'auto', exChange: 180, autoBackup: false, defaultRir: 2, mediaCtl: false, countMode: 'bipe', countFrom: 5, startSound: 'sino', chartLb: false, measIn: false},
+    settings: {continuous: true, sound: true, vibrate: true, prep: true, prepSec: 10, defaultRest: 60, weightKg: 84, smart: true, warmup: true, repUp: 2, repDown: 2, tempo: '2-0-2-0', theme: 'auto', exChange: 180, autoBackup: false, defaultRir: 2, mediaCtl: false, countMode: 'bipe', countFrom: 5, startSound: 'sino', remindEvery: 5, chartLb: false, measIn: false},
     profile: {sex: 'M', age: null, heightCm: null, weightKg: 84, fatKg: null, leanKg: null, leanAuto: true, boneKg: null, muscleKg: null, meas: {}, log: []},
     customEx: [],
     routines: [{id: uid(), name: 'Rotina 1', workouts: [{id: uid(), name: 'Treino A', groups: ['Dorsais', 'Trapézio', 'Abdômen'], exercises: [
@@ -647,6 +651,7 @@ let sessions = lsGet(LS + '.sessions') || [];
 sessions.forEach(migSess);
 const NAT = !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications);
 const natP = n => NAT ? window.Capacitor.Plugins[n] : null;
+let natFg = true;   // app na frente (vem do Android); em segundo plano os sons saem pelos alarmes nativos
 let natInitP = null, natLast = '', natT = 0, natAlarm = 0;
 let run = lsGet(LS + '.run');
 if (run && run.phase !== 'done' && !run.pausedAt) run.pausedAt = run.heartbeat || Date.now();
@@ -801,7 +806,7 @@ function setDoneFrom(i, j) {
   if (!now) { if (run.prevPtr && run.prevPtr[0] === i && run.prevPtr[1] === j) run.prevPtr = null; toast('Série marcada como não feita'); return; }
   if (i === run.exIdx && j === run.setIdx && run.phase !== 'done') { const t = nextTarget(); if (t) { run.exIdx = t[0]; run.setIdx = t[1]; setPhase(prepPh()); } }
 }
-function applyRest(e, j, f) { const s = e.sets[j]; let n = 0; e.sets.forEach((x, k) => { if (k > j && !x.done && (!x.warm || s.warm)) { x[f] = s[f]; n++; } }); return n; }
+function applyRest(e, j, f) { const s = e.sets[j]; let n = 0; e.sets.forEach((x, k) => { if (k > j && !x.kind && (s.done || !x.done) && !!x.warm === !!s.warm) { x[f] = s[f]; n++; } }); return n; }   // série feita: corrige também as seguintes já feitas
 const isCardio = e => { const l = e && (e.primary ? e : getEx(e.exId)); return !!(l && l.primary && l.primary[0] === 'Cardio'); };
 const fmtMin = secs => { const m = Math.floor(secs / 60), r = Math.round(secs % 60); return r ? m + ':' + pad(r) : String(m); };
 /* número da versão: no app Android vem do próprio APK; na versão web, da data em que a página foi gerada */
@@ -1253,6 +1258,7 @@ function settingsView() {
   <div class="set"><div class="t"><b>Contagem regressiva</b><span class="muted small">Toca nos últimos segundos do Prepare-se.</span></div><select data-act-change="setsel" data-k="countMode" aria-label="Contagem regressiva" style="width:140px">${selOpts([['bipe', 'Toque discreto'], ['madeira', 'Bloco de madeira'], ['grave', 'Bipe grave'], ['digital', 'Relógio digital'], ['duplo', 'Toque duplo'], ['pulso', 'Pulso (sobe no 1)'], ['voz', 'Voz falando'], ['off', 'Desligada']], s.countMode)}</select></div>
   ${nf('countFrom', 'Contar a partir de', 'Segundos finais da preparação.', 's')}
   <div class="set"><div class="t"><b>Som de início</b><span class="muted small">Toca quando a série começa.</span></div><select data-act-change="setsel" data-k="startSound" aria-label="Som de início" style="width:140px">${selOpts([['sino', 'Sino de ringue'], ['apito', 'Apito'], ['gongo', 'Gongo'], ['campainha', 'Campainha'], ['buzina', 'Buzina'], ['arpejo', 'Fanfarra curta'], ['tambor', 'Tambor'], ['vai', 'Largada (bip-bip-biiip)'], ['bipe', 'Bipe']], s.startSound)}</select></div>
+  <div class="set"><div class="t"><b>Repetir o apito se a série não começar</b><span class="muted small">Quando o descanso ou o preparo acaba e você não toca em nada, o apito repete (até 6 vezes). Para no primeiro toque, no app ou na notificação.</span></div><select data-act-change="setsel" data-k="remindEvery" aria-label="Repetir o apito" style="width:140px">${selOpts([['5', 'A cada 5 s'], ['10', 'A cada 10 s'], ['15', 'A cada 15 s'], ['20', 'A cada 20 s'], ['30', 'A cada 30 s'], ['0', 'Não repetir']], String(s.remindEvery ?? 5))}</select></div>
   <div class="set" style="align-items:center"><div class="t"><b>Testar sons</b></div><button class="btn sm" data-act="testCount">Contagem</button><button class="btn sm" data-act="testStart">Início</button></div>
   ${NAT ? '' : tg('mediaCtl', 'Controles na notificação (experimental)', 'Durante o treino, mostra série, reps e carga na notificação de mídia do celular, com Próximo, Voltar e Pausa. Depende do navegador permitir. Atenção: pode pausar o Spotify, porque o celular só mostra um player de mídia por vez.')}
   ${tg('autoBackup', 'Backup automático no Drive', 'Ao terminar cada treino, faz o backup sem perguntar. Sem rede, espera e tenta de novo sozinho.')}
@@ -1389,6 +1395,24 @@ function askOfficial(i, kind) {
   const pi = f.w.exercises.findIndex(x => x.id === e.cfg.id); if (pi < 0) return;
   modal(`<h2>${kind === 'sub' ? 'Trocado só neste treino' : 'Alterado só neste treino'}</h2><p class="muted" style="margin:0">${kind === 'sub' ? `Hoje você faz <b>${esc(exLabel(e))}</b>. Na próxima vez volta o exercício do treino oficial` : 'A mudança vale para hoje. Na próxima vez volta o que está no treino oficial'}, a menos que você leve a mudança para lá.</p><div style="display:flex;flex-direction:column;gap:10px"><button class="btn primary" data-act="closeModal">Só neste treino</button><button class="btn" data-act="toOfficial" data-i="${i}">Mudar também o treino oficial</button></div>`);
 }
+/* Ajustar (durante o treino): recalcula as séries que faltam deste exercício, só para hoje */
+let adj = null;
+function adjE1(e) {
+  const est = estE1(Object.assign({}, e.cfg, {plan: null}));
+  if (est) return {e1: est.e1, how: est.how};
+  const v = e.sets.filter(x => !x.warm && !x.kind && x.kg > 0 && x.reps > 0); if (!v.length) return null;
+  return {e1: Math.max(...v.map(x => e1rm(x.kg, x.reps + (x.done ? (x.rir ?? 0) : (x.rir ?? S.settings.defaultRir))))), how: 'cargas deste treino'};
+}
+function adjView() {
+  const e = run.exs[adj.i], done = e.sets.filter(x => x.done);
+  const prev = adj.rows ? `<div class="card" style="padding:4px 12px">${adj.rows.map((r, k) => `<div class="hset"><span class="sn" style="width:26px;height:26px;font-size:12px">${setNo({sets: done.concat(adj.rows)}, done.length + k).sn}</span><span style="flex:1"><b>${fmtN(r.kg)}</b> kg × <b>${fmtN(r.reps)}</b>${r.kind ? ` · ${r.kind === 'drop' ? 'drop' : 'rest-pause'}` : ''}</span><span class="muted small">${r.kind ? 'emenda' : (r.rest ?? adj.rest) + ' s'}</span></div>`).join('')}</div><p class="muted small" style="margin:0">${esc(adj.note || '')}${done.length ? ` · as ${done.length} série${done.length > 1 ? 's' : ''} já feita${done.length > 1 ? 's' : ''} não mudam` : ''}</p>` : '';
+  modal(`<h2>Ajustar · só hoje</h2><p class="muted small" style="margin:0">${esc(exLabel(e))}. Vale para as séries que faltam neste treino; o treino oficial não muda.</p>
+  <div class="fr"><div class="field"><label class="lbl" for="aj_t">Técnica</label><select id="aj_t">${selOpts(TECH, adj.tech)}</select></div><div class="field"><label class="lbl" for="aj_w">Aquecimento</label><select id="aj_w">${selOpts([[0, 'Nenhum'], [1, '1 série'], [2, '2 séries'], [3, '3 séries']], adj.warmN)}</select></div></div>
+  <div class="fr"><div class="field"><label class="lbl" for="aj_r">Descanso (s)</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="aj_r" value="${adj.rest}"></div><div class="field"><label class="lbl" for="aj_p">Preparo (s)</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="aj_p" value="${adj.prep}"></div></div>
+  <button class="btn" data-act="adjCalc">Calcular cargas, aquecimento e descansos</button>${prev}
+  <button class="btn primary block" data-act="adjSave">${adj.rows ? 'Aplicar às séries que faltam' : 'Aplicar descanso e preparo'}</button>`);
+}
+function adjSync() { adj.tech = val('aj_t') || 'normal'; adj.warmN = +val('aj_w') || 0; adj.rest = Math.max(0, Math.round(num(val('aj_r')))); adj.prep = Math.max(0, Math.round(num(val('aj_p')))); }
 function routinePack(rs) {
   const ids = new Set(rs.flatMap(r => r.workouts.flatMap(w => w.exercises.map(e => e.exId)))), notes = {};
   ids.forEach(id => { if (S.exNotes[id]) notes[id] = S.exNotes[id]; });
@@ -1701,7 +1725,7 @@ function peditView() {
     return `<div class="card" style="padding:12px 14px;margin-top:12px"><div style="display:flex;align-items:center;gap:10px">${tileOf(l)}<span style="flex:1;min-width:0"><b>${esc(exLabel(Object.assign({name: l.name}, c)))}</b><span class="muted small" style="display:block">Base: ${esc(x.src)}${x.note ? ' · ' + esc(x.note) : ''}</span></span></div>
     <div class="pectl"><select id="pe_t_${i}" aria-label="Técnica">${selOpts(TECH, x.tech)}</select><select id="pe_w_${i}" aria-label="Séries de aquecimento">${selOpts([[0, 'Sem aquecimento'], [1, '1 aquecimento'], [2, '2 aquecimentos'], [3, '3 aquecimentos']], x.warmN)}</select><button class="btn sm primary" data-act="peCalc" data-i="${i}">Calcular</button></div>
     <div class="perow muted small"><span>#</span><span>Reps</span><span>kg</span><span>lb</span><span>Tipo</span><span></span></div>
-    ${x.rows.map((r, j) => `<div class="perow"><span class="sn" style="width:24px;height:24px;font-size:12px">${j + 1}</span><input type="number" inputmode="numeric" id="pe_r_${i}_${j}" value="${r.reps ?? ''}" aria-label="Repetições">${kgLbInputs(`pe_k_${i}_${j}`, r.kg)}${r.kind ? `<span class="chipm" style="text-align:center;padding:4px 2px">${r.kind === 'drop' ? 'Drop' : 'RP'} ${r.kn || ''}</span>` : `<button class="wtag ${r.warm ? 'on' : ''}" data-act="peWarm" data-i="${i}" data-j="${j}">${r.warm ? 'Aquec.' : 'Válida'}</button>`}<button class="ib" data-act="peDel" data-i="${i}" data-j="${j}" aria-label="Remover série">${ic('x')}</button></div>${x.rows[j + 1] && x.rows[j + 1].kind ? '' : `<label class="perest"><span>descanso depois</span><input type="number" inputmode="numeric" id="pe_d_${i}_${j}" value="${r.rest ?? ''}" placeholder="${c.rest ?? S.settings.defaultRest}" aria-label="Descanso depois da série ${j + 1}, em segundos"><span>s</span></label>`}`).join('')}
+    ${x.rows.map((r, j) => `<div class="perow"><span class="sn" style="width:24px;height:24px;font-size:12px">${setNo({sets: x.rows}, j).sn}</span><input type="number" inputmode="numeric" id="pe_r_${i}_${j}" value="${r.reps ?? ''}" aria-label="Repetições">${kgLbInputs(`pe_k_${i}_${j}`, r.kg)}${r.kind ? `<span class="chipm" style="text-align:center;padding:4px 2px">${r.kind === 'drop' ? 'Drop' : 'RP'} ${r.kn || ''}</span>` : `<button class="wtag ${r.warm ? 'on' : ''}" data-act="peWarm" data-i="${i}" data-j="${j}">${r.warm ? 'Aquec.' : 'Válida'}</button>`}<button class="ib" data-act="peDel" data-i="${i}" data-j="${j}" aria-label="Remover série">${ic('x')}</button></div>${x.rows[j + 1] && x.rows[j + 1].kind ? '' : `<div class="perest"><label for="pe_d_${i}_${j}">descanso depois</label><input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" id="pe_d_${i}_${j}" value="${r.rest ?? ''}" placeholder="${c.rest ?? S.settings.defaultRest}" aria-label="Descanso depois da série ${j + 1}, em segundos"><span>s</span><button class="linkb" data-act="peRestAll" data-i="${i}" data-j="${j}">${r.warm ? 'em todos aquec.' : 'em todas válidas'}</button></div>`}`).join('')}
     <button class="addset" data-act="peAdd" data-i="${i}">+ Série</button></div>`; }).join('')}
   <div style="display:flex;flex-direction:column;gap:10px;margin-top:18px"><button class="btn primary block" data-act="peSave">Salvar</button></div>`;
 }
@@ -1753,20 +1777,26 @@ async function storePhotos(files) {
 
 /* ---------- sons ---------- */
 let audioTimer = null;
+let outNode = null;
+function outN() {   // saída de todos os sons: +6 dB com compressor, para não estourar
+  const a = ac(); if (outNode && outNode.context === a) return outNode;
+  const g = a.createGain(), c = a.createDynamicsCompressor(); g.gain.value = 2.2; c.threshold.value = -6; c.knee.value = 4; c.ratio.value = 12; c.attack.value = .002; c.release.value = .12;
+  g.connect(c); c.connect(a.destination); outNode = g; return g;
+}
 function ac() { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); clearTimeout(audioTimer); if (audio.state === 'suspended') audio.resume(); return audio; }
 // libera o áudio quando o app fica em silêncio, para o celular devolver o volume da música
 function holdAudio(ms, quiet) { if (!quiet) natDuck(ms); clearTimeout(audioTimer); audioTimer = setTimeout(() => { try { if (audio && audio.state === 'running') audio.suspend(); } catch (e) {} }, ms); }
-function tickSnd() { try { const a = ac(), o = a.createOscillator(), g = a.createGain(), t = a.currentTime; o.frequency.value = 1400; o.connect(g); g.connect(a.destination); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.16, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + .07); o.start(t); o.stop(t + .08); holdAudio(run && run.phase === 'prepare' ? 4000 : 1200); } catch (e) {} }
+function tickSnd() { try { const a = ac(), o = a.createOscillator(), g = a.createGain(), t = a.currentTime; o.frequency.value = 1400; o.connect(g); g.connect(outN()); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.16, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + .07); o.start(t); o.stop(t + .08); holdAudio(run && run.phase === 'prepare' ? 4000 : 1200); } catch (e) {} }
 function say(n) { try { const u = new SpeechSynthesisUtterance(String(n)); u.lang = 'pt-BR'; u.rate = 1.1; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) { tickSnd(); } }
 function tone(f, dur, {type = 'sine', vol = .2, at = 0, glide = 0} = {}) {
   const a = ac(), t = a.currentTime + at, o = a.createOscillator(), g = a.createGain();
   o.type = type; o.frequency.setValueAtTime(f, t); if (glide) o.frequency.exponentialRampToValueAtTime(glide, t + dur);
-  o.connect(g); g.connect(a.destination); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + dur); o.start(t); o.stop(t + dur + .02);
+  o.connect(g); g.connect(outN()); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + dur); o.start(t); o.stop(t + dur + .02);
 }
 function noiseHit(dur, f, vol, at = 0) {
   const a = ac(), t = a.currentTime + at, len = Math.floor(a.sampleRate * dur), buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
   for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
-  const n = a.createBufferSource(), bp = a.createBiquadFilter(), g = a.createGain(); n.buffer = buf; bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = 1.2; g.gain.value = vol; n.connect(bp); bp.connect(g); g.connect(a.destination); n.start(t);
+  const n = a.createBufferSource(), bp = a.createBiquadFilter(), g = a.createGain(); n.buffer = buf; bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = 1.2; g.gain.value = vol; n.connect(bp); bp.connect(g); g.connect(outN()); n.start(t);
 }
 const COUNT_SND = {
   madeira: n => { tone(n === 1 ? 1250 : 950, .06, {vol: .3}); noiseHit(.03, 2500, .25); },
@@ -1784,15 +1814,15 @@ function countSnd(n) {
 }
 function bell() {
   const a = ac();
-  for (let k = 0; k < 3; k++) { const t = a.currentTime + k * .2; [1, 2.76, 5.4, 8.93].forEach((r, i) => { const o = a.createOscillator(), g = a.createGain(); o.frequency.value = 640 * r; o.connect(g); g.connect(a.destination); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime([.32, .16, .09, .05][i], t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + 1.3 / (1 + i * .6)); o.start(t); o.stop(t + 1.4); }); }
+  for (let k = 0; k < 3; k++) { const t = a.currentTime + k * .2; [1, 2.76, 5.4, 8.93].forEach((r, i) => { const o = a.createOscillator(), g = a.createGain(); o.frequency.value = 640 * r; o.connect(g); g.connect(outN()); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime([.32, .16, .09, .05][i], t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + 1.3 / (1 + i * .6)); o.start(t); o.stop(t + 1.4); }); }
 }
 function whistle() {
   const a = ac(), t = a.currentTime, o = a.createOscillator(), g = a.createGain(), l = a.createOscillator(), lg = a.createGain();
-  o.frequency.value = 2900; l.frequency.value = 28; lg.gain.value = 140; l.connect(lg); lg.connect(o.frequency); o.connect(g); g.connect(a.destination);
+  o.frequency.value = 2900; l.frequency.value = 28; lg.gain.value = 140; l.connect(lg); lg.connect(o.frequency); o.connect(g); g.connect(outN());
   g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.22, t + .02); g.gain.setValueAtTime(.22, t + .55); g.gain.exponentialRampToValueAtTime(.0001, t + .68); o.start(t); l.start(t); o.stop(t + .7); l.stop(t + .7);
   const len = Math.floor(a.sampleRate * .68), buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
   const n = a.createBufferSource(), bp = a.createBiquadFilter(), ng = a.createGain(); n.buffer = buf; bp.type = 'bandpass'; bp.frequency.value = 2900; bp.Q.value = 4;
-  ng.gain.setValueAtTime(.0001, t); ng.gain.exponentialRampToValueAtTime(.07, t + .02); ng.gain.exponentialRampToValueAtTime(.0001, t + .68); n.connect(bp); bp.connect(ng); ng.connect(a.destination); n.start(t);
+  ng.gain.setValueAtTime(.0001, t); ng.gain.exponentialRampToValueAtTime(.07, t + .02); ng.gain.exponentialRampToValueAtTime(.0001, t + .68); n.connect(bp); bp.connect(ng); ng.connect(outN()); n.start(t);
 }
 const START_SND = {
   gongo: () => { [[110, .5, 3.2], [220, .28, 2.6], [331, .14, 2], [497, .08, 1.4]].forEach(([f, v, d]) => tone(f, d, {vol: v})); return 3400; },
@@ -1863,12 +1893,38 @@ function natDuck(ms) { const fn = natP('FerroNotif'); if (fn && fn.duck) try { f
 function natAct(raw) {
   if (!run || run.phase === 'done') return;
   const [id, stamp] = String(raw || '').split(':');
+  if (id !== 'tick') remindStop();
   if (id === 'tick') { runDue(); natLast = ''; clearTimeout(natT); natPush(); if (view.n === 'run') render(); return; }
   runDue();   // põe o treino em dia antes de obedecer ao toque
   // o toque foi numa notificação atrasada (a fase já mudou sozinha): não aplica, só atualiza, para não pular nem reabrir série sem querer
   if (stamp && +stamp !== run.phaseStart && (id === 'next' || id === 'back')) { natLast = ''; clearTimeout(natT); natPush(); if (view.n === 'run') render(); return; }
   if (id === 'next') runNext(); else if (id === 'back') runBack(); else if (id === 'pause') H.pauseBtn(); else if (id === 'plus') H.restPlus();
   natLast = ''; clearTimeout(natT); natPush(); if (view.n === 'run') render();
+}
+function natActions(P, pz) {
+  const A = {back: {id: 'back', label: 'Voltar', icon: 'back'}, pause: {id: 'pause', label: 'Pausar', icon: 'pause'}};
+  return pz ? [A.back, {id: 'pause', label: 'Continuar', icon: 'play', primary: true}, {id: 'next', label: 'Próximo', icon: 'skip'}]
+    : P === 'rest' ? [{id: 'plus', label: '+15 s', icon: 'plus'}, A.pause, {id: 'next', label: 'Pular', icon: 'skip', primary: true}]
+    : P === 'exec' ? [A.back, A.pause, {id: 'next', label: 'Feito', icon: 'check', primary: true}]
+    : P === 'prepare' ? [A.back, A.pause, {id: 'next', label: 'Começar', icon: 'play', primary: true}]
+    : [A.pause, {id: 'next', label: 'Começar', icon: 'play', primary: true}];
+}
+/* sequência de avisos que o Android executa sozinho, sem depender da página estar rodando */
+function natSteps(T) {
+  const ex = curEx(), body = `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`, timed = ex.type === 'time', st = ex.sets[run.setIdx] || {};
+  const execPatch = at => ({label: timed ? 'SEGURE A POSIÇÃO' : 'EXECUTANDO', color: NCOL.exec, chrono: timed ? 'down' : 'up', endAt: timed ? at + (st.secs || 30) * 1000 : 0, startAt: at, paused: false, actions: natActions('exec', false)});
+  const rems = from => !(+S.settings.remindEvery > 0) ? [] : Array.from({length: 6}, (_, k) => ({at: from + (k + 1) * remMs(), title: 'Hora da série', body, sound: 'bell', rem: true, from}));
+  const steps = [];
+  if (run.phase === 'rest') {
+    const pr = curPrep(), cont = S.settings.continuous;
+    if (cont && pr > 0) { steps.push({at: T, title: 'Fim do descanso', body, sound: 'beep3', notif: {label: 'PREPARE-SE', color: NCOL.prepare, chrono: 'down', endAt: T + pr * 1000, paused: false, actions: natActions('prepare', false)}}); const T2 = T + pr * 1000; steps.push({at: T2, title: 'Começar a série', body, sound: 'bell', notif: execPatch(T2)}); if (!timed) steps.push(...rems(T2)); }
+    else if (cont) { steps.push({at: T, title: 'Fim do descanso', body, sound: 'bell', notif: execPatch(T)}); if (!timed) steps.push(...rems(T)); }
+    else { steps.push({at: T, title: 'Fim do descanso', body, sound: 'beep3'}); steps.push(...rems(T)); }
+  } else if (run.phase === 'prepare') {
+    if (S.settings.continuous) { steps.push({at: T, title: 'Começar a série', body, sound: 'bell', notif: execPatch(T)}); if (!timed) steps.push(...rems(T)); }
+    else { steps.push({at: T, title: 'Começar a série', body, sound: 'bell'}); steps.push(...rems(T)); }
+  } else steps.push({at: T, title: 'Tempo da série terminou', body, sound: 'beep3'});
+  return steps;
 }
 const NCOL = {warmup: '#46BF78', prepare: '#E6B422', exec: '#F0654D', rest: '#4D96E8', paused: '#97A3B0'};
 function natPayload() {
@@ -1878,12 +1934,7 @@ function natPayload() {
   const nx = nextTargetFrom(run.exIdx), nxName = nx && nx[0] !== run.exIdx ? run.exs[nx[0]].name : '';
   const tp = st.tempo || ex.tempo;
   const line2 = [tp && ex.type !== 'time' ? `Cadência ${tp}` : '', `Exercício ${run.exIdx + 1} de ${run.exs.length}`, nxName && ex.sets.filter(x => !x.done).length <= 1 ? `depois: ${nxName}` : ''].filter(Boolean).join('  ·  ');
-  const A = {back: {id: 'back', label: 'Voltar', icon: 'back'}, pause: {id: 'pause', label: 'Pausar', icon: 'pause'}};
-  const actions = pz ? [A.back, {id: 'pause', label: 'Continuar', icon: 'play', primary: true}, {id: 'next', label: 'Próximo', icon: 'skip'}]
-    : P === 'rest' ? [{id: 'plus', label: '+15 s', icon: 'plus'}, A.pause, {id: 'next', label: 'Pular', icon: 'skip', primary: true}]
-    : P === 'exec' ? [A.back, A.pause, {id: 'next', label: 'Feito', icon: 'check', primary: true}]
-    : P === 'prepare' ? [A.back, A.pause, {id: 'next', label: 'Começar', icon: 'play', primary: true}]
-    : [A.pause, {id: 'next', label: 'Começar', icon: 'play', primary: true}];
+  const actions = natActions(P, pz);
   actions.forEach(a => { if (a.id === 'next' || a.id === 'back') a.id += ':' + run.phaseStart; });
   const o = {label, color: NCOL[pz ? 'paused' : P] || '#F0654D', title: exLabel(ex), line1: `${cap1(setNo(ex, run.setIdx).txt)}  ·  ${load}`, line2, actions};
   if (v.count) { o.chrono = 'down'; if (pz) o.shownMs = Math.max(0, v.rem); else o.endAt = Math.round((Date.now() + v.rem) / 1000) * 1000; }
@@ -1932,14 +1983,21 @@ async function natPush() {
 function natClearAlert() { const fn = natP('FerroNotif'); if (fn && fn.clearAlert) try { fn.clearAlert(); } catch (e) {} const ln = natP('LocalNotifications'); if (ln) try { ln.removeDeliveredNotifications({notifications: [{id: 2}]}); } catch (e) {} }
 async function natAlarmSync(end) {
   const ln = natP('LocalNotifications'), fn = natP('FerroNotif'); if (!ln && !fn) return;
-  const want = (document.visibilityState === 'hidden' && end && end - Date.now() > 1500) ? Math.round(end / 1000) * 1000 : 0;
+  let want = (end && end - Date.now() > 800) ? Math.round(end / 1000) * 1000 : 0, steps = null;
+  if (!want && run && run.remind && run.phase === 'exec' && !run.pausedAt) {   // lembretes que faltam
+    const r = run.remind, list = Array.from({length: r.n}, (_, k) => r.from + (7 - r.n + k) * remMs()).filter(t => t > Date.now() + 300);
+    if (list.length) { const ex = curEx(), body = `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`; steps = list.map(t => ({at: t, title: 'Hora da série', body, sound: 'bell', rem: true, from: r.from})); want = list[0]; }
+  }
   if (want === natAlarm) return;
   natAlarm = want;
   if (fn && fn.alarm) {
     try {
       if (!want) { await fn.cancelAlarm(); return; }
+      if (fn.show) { await fn.alarm({at: want, steps: JSON.stringify(steps || natSteps(want))}); return; }
       const ex = curEx();
-      await fn.alarm({at: want, title: run.phase === 'rest' ? 'Fim do descanso' : run.phase === 'prepare' ? 'Começar a série' : 'Tempo da série terminou', body: `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`, sound: run.phase === 'prepare' ? 'bell' : 'beep3'});
+      const o = {at: want, title: run.phase === 'rest' ? 'Fim do descanso' : run.phase === 'prepare' ? 'Começar a série' : 'Tempo da série terminou', body: `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`, sound: run.phase === 'prepare' ? 'bell' : 'beep3'};
+      if (run.phase === 'rest' && S.settings.continuous && curPrep() > 0) { o.nextAt = want + curPrep() * 1000; o.nextTitle = 'Começar a série'; o.nextBody = o.body; o.nextSound = 'bell'; }   // o apito do preparo sai mesmo se a página estiver parada
+      await fn.alarm(o);
     } catch (e) {}
     return;
   }
@@ -1948,9 +2006,15 @@ async function natAlarmSync(end) {
     if (want) { const ex = curEx(); await ln.schedule({notifications: [{id: 2, title: run.phase === 'rest' ? 'Fim do descanso' : run.phase === 'prepare' ? 'Começar a série' : 'Tempo da série terminou', body: `${exLabel(ex)} · ${setNo(ex, run.setIdx).txt}`, channelId: 'ferro-alarme', smallIcon: 'ic_stat_ferro', iconColor: '#e8553a', schedule: {at: new Date(want), allowWhileIdle: true}}]}); }
   } catch (e) {}
 }
-document.addEventListener('visibilitychange', () => { if (NAT && document.visibilityState === 'visible') natClearAlert(); if (NAT && run && run.phase !== 'done') { const v = phaseView(); natAlarmSync((!run.pausedAt && v.count) ? Date.now() + v.rem : 0); } });
+document.addEventListener('visibilitychange', () => { if (NAT) natFg = document.visibilityState === 'visible'; if (NAT && document.visibilityState === 'visible') natClearAlert(); if (NAT && run && run.phase !== 'done') { const v = phaseView(); natAlarmSync((!run.pausedAt && v.count) ? Date.now() + v.rem : 0); } });
 if (NAT && run && run.phase !== 'done') setTimeout(() => natInit().then(natSync), 300);
 if (NAT && natP('App')) try {
+  natP('App').addListener('appStateChange', st => {
+    natFg = !!(st && st.isActive);
+    if (!run || run.phase === 'done') return;
+    if (natFg) { natClearAlert(); if (runDue()) render(); natAlarm = -1; natLast = ''; natPush(); }
+    else { natAlarm = -1; natLast = ''; natPush(); }
+  });
   let lastBack = 0;
   natP('App').addListener('backButton', () => {
     if ($('#modal').innerHTML) return closeModal();
@@ -1990,6 +2054,7 @@ const sum = o => Object.values(o).reduce((a, b) => a + b, 0);
 const elapsed = () => Math.max(0, (run.pausedAt || Date.now()) - run.phaseStart);
 function curTot() { const t = Object.assign({}, run.tot); if (t[run.phase] != null) t[run.phase] += elapsed(); return t; }
 function buildRunEx(cfg) {
+  cfg = JSON.parse(JSON.stringify(cfg));   // cópia: o que mudar no treino de hoje não altera o treino oficial
   const lib = getEx(cfg.exId);
   let last = null;
   if (S.settings.smart) for (const s of sessions) { const f = (s.exercises || []).find(x => x.exId === cfg.exId && vkey(x) === vkey(cfg) && x.sets.some(vset)); if (f) { last = f.sets.filter(vset); break; } }
@@ -2010,7 +2075,7 @@ function beep(n = 1) {
   try {
     ac();
     if (!n) { holdAudio(300, true); return; }
-    for (let i = 0; i < n; i++) { const o = audio.createOscillator(), g = audio.createGain(); o.frequency.value = 880; o.connect(g); g.connect(audio.destination); const t = audio.currentTime + i * .28; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.3, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + .2); o.start(t); o.stop(t + .22); }
+    for (let i = 0; i < n; i++) { const o = audio.createOscillator(), g = audio.createGain(); o.frequency.value = 880; o.connect(g); g.connect(outN()); const t = audio.currentTime + i * .28; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.3, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + .2); o.start(t); o.stop(t + .22); }
     holdAudio(n * 300 + 1200);
   } catch (e) {}
 }
@@ -2027,7 +2092,8 @@ function setPhase(p) {
   if (run.phase !== 'done') run.tot[run.phase] += elapsed();
   const prev = run.phase; run.phase = p; run.phaseStart = Date.now(); run.pausedAt = null; run.fired = 0; if (p !== 'prepare') run.prepOv = null;
   if (p === 'exec' && prev !== 'exec' && !run.sndDone) startSound();
-  if (p === 'prepare' && S.settings.sound && S.settings.countMode !== 'off' && audio) { try { ac(); holdAudio(curPrep() * 1000 + 3500); } catch (e) {} }
+  if (p !== 'exec' && run.remind && p !== run.phase) run.remind = null;
+  if (p === 'prepare' && S.settings.sound && S.settings.countMode !== 'off' && audio && !natQuiet()) { try { ac(); holdAudio(curPrep() * 1000 + 3500); } catch (e) {} }
   run.sndDone = false; run.peek = false;
   if (p === 'rest') run.restTotal = (curEx() ? curEx().rest : S.settings.defaultRest) * 1000;
   persistRun();
@@ -2180,9 +2246,9 @@ function runView() {
   return `<div class="runhead rh2"><button class="ib" data-act="closeRun" aria-label="Encerrar treino">${ic('x')}</button><div class="rht"><span>${esc([run.routine, run.name].filter(Boolean).join(' · '))}</span><b>${esc(exLabel(ex))}</b></div><button class="pillbtn" data-act="runStats">Estatísticas</button></div>
   <div class="lbl">Exercício ${vi + 1}/${run.exs.length}${restSplit() && run.peek ? ' · próximo, depois do descanso' : ''}</div>
   <div class="exhead">${tileOf(getEx(ex.exId)).replace('tile sm', 'tile')}<div class="t" data-act="openEx" data-id="${ex.exId}" data-vk="${esc(vkey(ex))}" style="cursor:pointer"><b style="text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:4px">${esc(exLabel(ex))}</b><span class="muted">${esc(ex.primary.concat(ex.secondary).join(', '))}</span>${techLab(ex) ? `<span class="techtag">${esc(techLab(ex))}</span>` : ''}</div></div>${ex.type !== 'time' ? `<button class="tempobar" data-act="runTempo">Cadência <b class="num">${ex.tempo || S.settings.tempo}</b> · ${tSec(ex.tempo || S.settings.tempo)} s por repetição <span style="margin-left:auto;color:var(--accent)">alterar</span></button>` : ''}
-  <div class="acts"><button class="btn sm" data-act="subEx" data-i="${vi}">${ic('swap')} Substituir</button><button class="btn sm" data-act="noteEx">${ic('note')} ${ex.note ? 'Nota ✓' : 'Nota'}</button></div>
+  <div class="acts"><button class="btn sm" data-act="subEx" data-i="${vi}">${ic('swap')} Substituir</button><button class="btn sm" data-act="noteEx">${ic('note')} ${ex.note ? 'Nota ✓' : 'Nota'}</button>${ex.type === 'time' ? '' : `<button class="btn sm" data-act="runAdj" data-i="${vi}">Ajustar</button>`}</div>
   ${run.warm && vi === 0 ? `<div class="warm ${run.phase === 'warmup' ? 'on' : ''}"><b>${ic('dumb').replace('<svg', '<svg ' + small)} Aquecimento</b><span class="muted small">Repetições livres • Carga leve</span></div>` : ''}
-  <div class="sets">${sets}</div>
+  <div class="sets" ${vi === run.exIdx ? `data-ph="${run.pausedAt ? 'paused' : run.phase}" style="--ph:${run.pausedAt ? 'var(--muted)' : ({warmup: 'var(--warmup)', prepare: 'var(--prepare)', exec: 'var(--exec)', rest: 'var(--rest)'}[run.phase] || 'var(--accent)')}"` : ''}>${sets}</div>
   <button class="addset" data-act="addSet" data-i="${vi}">${ic('plus').replace('<svg', '<svg ' + small)} Adicionar série</button>
   <div class="sec" style="margin-top:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><h2 style="flex:1">Lista de exercícios</h2><button class="btn sm ${run.reorder ? 'primary' : ''}" data-act="reorder">${run.reorder ? 'Concluir ordem' : 'Reordenar'}</button></div><div class="card exlist">${list}</div><button class="addset" data-act="addRunEx" style="justify-content:center;width:100%">+ Adicionar exercício</button></div>
   <div style="height:150px"></div><div class="sheet" id="sheet"><div></div></div>`;
@@ -2409,22 +2475,39 @@ function tickSheet() {
 }
 /* fase com tempo vencido (descanso, preparo, série por tempo): avança. Com o app em segundo plano o relógio da página
    pode atrasar ou parar; o alarme nativo e os toques na notificação chamam isto para o treino nunca ficar para trás */
+const natQuiet = () => NAT && (!natFg || document.visibilityState === 'hidden');   // em segundo plano quem toca é o alarme nativo
 function runDue() {
-  if (!run || run.phase === 'done' || run.pausedAt) return false;
-  const v = phaseView();
-  if (!(v.count && v.rem <= 0 && run.fired !== run.phaseStart)) return false;
-  run.fired = run.phaseStart;
-  const quiet = NAT && document.visibilityState === 'hidden';   // em segundo plano quem toca é o alarme nativo
-  if (!quiet) { if (v.P === 'prepare') { startSound(); run.sndDone = true; } else { beep(v.P === 'rest' ? 3 : 2); if (v.P === 'rest') buzz(); } if (v.P === 'exec') buzz(); }
-  else if (v.P === 'prepare') run.sndDone = true;
-  if (S.settings.continuous) { runNext(); return true; }
-  return false;
+  let moved = false;
+  for (let k = 0; k < 4; k++) {
+    if (!run || run.phase === 'done' || run.pausedAt) break;
+    const v = phaseView();
+    if (!(v.count && v.rem <= 0 && run.fired !== run.phaseStart)) break;
+    run.fired = run.phaseStart;
+    const P0 = v.P, over = Math.max(0, v.el - (P0 === 'rest' ? run.restTotal : P0 === 'prepare' ? Math.max(1, curPrep()) * 1000 : ((v.s && v.s.secs) || 0) * 1000)), endAt = Date.now() - over, quiet = natQuiet() || over > 4000;
+    if (!quiet) { if (P0 === 'prepare') { startSound(); run.sndDone = true; } else { beep(P0 === 'rest' ? 3 : 2); if (P0 === 'rest') buzz(); } if (P0 === 'exec') buzz(); }
+    else if (P0 === 'prepare') run.sndDone = true;
+    if (!S.settings.continuous) { if (P0 === 'rest' || P0 === 'prepare') remindStart(endAt); break; }
+    if (P0 === 'prepare' || (P0 === 'rest' && prepPh() === 'exec')) run.sndDone = true;
+    runNext(); moved = true;
+    if (run && run.phase !== 'done') {
+      if (over > 0) { run.tot[P0] = Math.max(0, (run.tot[P0] || 0) - over); run.phaseStart = endAt; if (run.phase === 'rest') run.restTotal = run.restTotal; }
+      if (run.phase === 'exec' && !(curEx().type === 'time')) remindStart(endAt);
+    }
+  }
+  return moved;
 }
+/* apito repetido a cada 5 s (até 30 s) quando a série devia começar e ninguém tocou em nada */
+const remMs = () => Math.max(5, +S.settings.remindEvery || 0) * 1000;
+function remindStart(from) { if (!run || !(+S.settings.remindEvery > 0)) return; run.remind = {from, n: 6}; }
+function remindStop() { if (run && run.remind) { run.remind = null; natAlarm = -1; } }
+document.addEventListener('click', () => remindStop(), true);
 setInterval(() => {
   if (!run || run.phase === 'done' || run.pausedAt) return;
   const v = phaseView();
   if (v.P === 'prepare' && v.count && !(NAT && document.visibilityState === 'hidden')) { const sl = Math.ceil(v.rem / 1000), key = run.phaseStart + ':' + sl; if (sl >= 1 && sl <= S.settings.countFrom && run.lastCount !== key) { run.lastCount = key; countSnd(sl); } }
   if (runDue()) { if (NAT) { natLast = ''; natPush(); } return; }
+  if (run.remind && run.phase === 'exec' && !natQuiet()) { const due = run.remind.from + (7 - run.remind.n) * remMs(); if (Date.now() >= due) { startSound(); if (--run.remind.n <= 0) run.remind = null; } }
+  else if (run.remind && run.phase !== 'exec' && run.phase !== 'rest' && run.phase !== 'prepare') run.remind = null;
   if (view.n !== 'run') { const mt = $('#mrt'); if (mt) mt.textContent = miniTxt().t; }
   if (view.n === 'run') tickSheet(); else if (view.n === 'runstats') { const b = $('#statsBody'); if (b) b.innerHTML = statsBody(runStats()); }
 }, 250);
@@ -2532,6 +2615,30 @@ const H = {
     persistRun(); closeModal(); render(); toast('Cadência ' + t);
   },
   jumpMore: d => { closeModal(); const i = +d.i, e = run.exs[i]; extraSet(i); const k = e.sets.findIndex(s => !s.done); if (k >= 0 && run.exIdx !== i) { abortExec(); run.exIdx = i; run.setIdx = k; e.skipped = false; setPhase(prepPh()); } persistRun(); render(); window.scrollTo(0, 0); },
+  runAdj: d => { const e = run.exs[+d.i]; if (!e) return; adj = {i: +d.i, tech: (e.cfg && e.cfg.tech) || 'normal', warmN: e.sets.filter(x => x.warm).length, rest: e.rest ?? S.settings.defaultRest, prep: prepOf(e), rows: null}; adjView(); },
+  adjCalc: () => {
+    adjSync(); const e = run.exs[adj.i], est = adjE1(e);
+    if (!est) { adj.rows = null; adjView(); return toast('Sem histórico nem carga neste treino para estimar'); }
+    const nV = Math.max(1, e.sets.filter(x => !x.warm && !x.kind).length);
+    const rows = calcRows(Object.assign({}, e.cfg, {plan: null, sets: nV, rest: adj.rest, rir: e.cfg.rir}), adj.tech, adj.warmN, est.e1);
+    let dw = e.sets.filter(x => x.done && x.warm).length, dv = e.sets.filter(x => x.done && !x.warm && !x.kind).length; const started = dv > 0;
+    adj.rows = rows.filter(r => { if (r.warm && (started || dw > 0)) { dw--; return false; } if (!r.warm && !r.kind && dv > 0) { dv--; return false; } return true; });
+    if (adj.tech === 'gironda') adj.rest = 30; else if (adj.tech === 'fst7') adj.rest = 40; else if (adj.tech === 'gvt') adj.rest = 60;
+    adj.note = `1RM estimado ${fmtN(Math.round(est.e1))} kg (${est.how})`; adjView();
+  },
+  adjSave: () => {
+    adjSync(); const i = adj.i, e = run.exs[i]; if (!e) return closeModal();
+    e.rest = adj.rest; e.prep = adj.prep; e.cfg.tech = adj.tech; e.cfg.warmN = adj.warmN;
+    if (adj.rows) {
+      const keepPrev = run.prevPtr && run.prevPtr[0] === i ? e.sets[run.prevPtr[1]] : null, done = e.sets.filter(x => x.done);
+      let wi = 0; const rr = e.cfg.rir && e.cfg.rir.length ? e.cfg.rir : [S.settings.defaultRir];
+      const fresh = adj.rows.map(r => { const o = {reps: r.reps, kg: r.kg, rir: r.warm ? null : r.kind ? 0 : rr[Math.min(wi, rr.length - 1)], warm: !!r.warm, kind: r.kind || '', kn: r.kn || 0, rest: r.kind ? null : (r.rest ?? adj.rest), tempo: '', done: false}; if (!r.warm && !r.kind) wi++; return o; });
+      e.sets = done.concat(fresh);
+      if (keepPrev) run.prevPtr = [i, e.sets.indexOf(keepPrev)];
+      if (run.exIdx === i) { const k = e.sets.findIndex(x => !x.done); if (k >= 0) run.setIdx = k; }
+    } else e.sets.forEach(x => { if (!x.done && !x.kind && !x.warm) x.rest = adj.rest; });
+    adj = null; persistRun(); closeModal(); render(); toast('Ajustado só para este treino');
+  },
   toOfficial: d => {
     const e = run.exs[+d.i], f = findW(run.workoutId); if (!e || !f) return closeModal();
     const pi = f.w.exercises.findIndex(x => x.id === e.cfg.id); if (pi < 0) return closeModal();
@@ -2570,6 +2677,7 @@ const H = {
     view = {n: 'run'}; persistRun(); render(); window.scrollTo(0, 0); toast('Treino retomado');
   },
   peCancel: () => { pdraft = null; back(); },
+  peRestAll: d => { peSync(); const x = pdraft.ex[+d.i], src = x.rows[+d.j]; if (!src) return; let n = 0; x.rows.forEach(r => { if (!r.kind && !!r.warm === !!src.warm && r !== src) { r.rest = src.rest; n++; } }); render(); toast(n ? `Descanso de ${src.rest ?? 'padrão'}${src.rest != null ? ' s' : ''} em mais ${n} série${n > 1 ? 's' : ''}` : 'Não há outras séries desse tipo'); },
   peWarm: d => { peSync(); const r = pdraft.ex[+d.i].rows[+d.j]; r.warm = !r.warm; render(); },
   peDel: d => { peSync(); const x = pdraft.ex[+d.i]; if (x.rows.length < 2) return toast('Mantenha ao menos uma série'); x.rows.splice(+d.j, 1); render(); },
   peAdd: d => { peSync(); const x = pdraft.ex[+d.i], l = x.rows.filter(r => !r.kind).pop() || {reps: 10, kg: 0}; const at = x.rows.findIndex(r => r.kind); const nr = {reps: l.reps, kg: l.kg, warm: false}; if (at >= 0) x.rows.splice(at, 0, nr); else x.rows.push(nr); render(); },
@@ -2888,7 +2996,7 @@ if (!inClaude() && navigator.storage && navigator.storage.persist) navigator.sto
 </script>
 
 <script>
-if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202610311955').catch(() => {});
+if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202611030003').catch(() => {});
 </script>
 </body>
 </html>
