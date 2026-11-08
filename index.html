@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12161b">
-<script>window.FERRO_BUILD = '202611081654';</script>
+<script>window.FERRO_BUILD = '202611081703';</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -1273,7 +1273,7 @@ function settingsView() {
   <div class="set"><div class="t"><b>Contagem regressiva</b><span class="muted small">Toca nos últimos segundos do Prepare-se.</span></div><select data-act-change="setsel" data-k="countMode" aria-label="Contagem regressiva" style="width:140px">${selOpts([['bipe', 'Toque discreto'], ['madeira', 'Bloco de madeira'], ['grave', 'Bipe grave'], ['digital', 'Relógio digital'], ['duplo', 'Toque duplo'], ['pulso', 'Pulso (sobe no 1)'], ['voz', 'Voz falando'], ['off', 'Desligada']], s.countMode)}</select></div>
   ${nf('countFrom', 'Contar a partir de', 'Segundos finais da preparação.', 's')}
   <div class="set"><div class="t"><b>Som de início</b><span class="muted small">Toca quando a série começa.</span></div><select data-act-change="setsel" data-k="startSound" aria-label="Som de início" style="width:140px">${selOpts([['sino', 'Sino de ringue'], ['apito', 'Apito'], ['gongo', 'Gongo'], ['campainha', 'Campainha'], ['buzina', 'Buzina'], ['arpejo', 'Fanfarra curta'], ['tambor', 'Tambor'], ['vai', 'Largada (bip-bip-biiip)'], ['bipe', 'Bipe']], s.startSound)}</select></div>
-  <div class="set"><div class="t"><b>Repetir o apito se a série não começar</b><span class="muted small">Quando o descanso ou o preparo acaba e você não toca em nada, o apito repete (até 6 vezes). Para no primeiro toque, no app ou na notificação.</span></div><select data-act-change="setsel" data-k="remindEvery" aria-label="Repetir o apito" style="width:140px">${selOpts([['5', 'A cada 5 s'], ['10', 'A cada 10 s'], ['15', 'A cada 15 s'], ['20', 'A cada 20 s'], ['30', 'A cada 30 s'], ['0', 'Não repetir']], String(s.remindEvery ?? 5))}</select></div>
+  <div class="set"><div class="t"><b>Repetir o apito se a série não começar</b><span class="muted small">Só com a progressão contínua desligada: quando o descanso acaba, o app espera o seu toque e o apito repete (até 6 vezes). Para no primeiro toque, no app ou na notificação.</span></div><select data-act-change="setsel" data-k="remindEvery" aria-label="Repetir o apito" style="width:140px">${selOpts([['5', 'A cada 5 s'], ['10', 'A cada 10 s'], ['15', 'A cada 15 s'], ['20', 'A cada 20 s'], ['30', 'A cada 30 s'], ['0', 'Não repetir']], String(s.remindEvery ?? 5))}</select></div>
   <div class="set"><div class="t"><b>Som do fim do descanso</b><span class="muted small">Toca quando o descanso termina.</span></div><select data-act-change="setsel" data-k="restSound" aria-label="Som do fim do descanso" style="width:140px">${selOpts([['bipe3', 'Bipe triplo'], ['sino', 'Sino de ringue'], ['apito', 'Apito'], ['gongo', 'Gongo'], ['campainha', 'Campainha'], ['buzina', 'Buzina'], ['arpejo', 'Fanfarra curta'], ['tambor', 'Tambor'], ['vai', 'Largada (bip-bip-biiip)'], ['bipe', 'Bipe']], s.restSound || 'bipe3')}</select></div>
   <div class="set" style="align-items:center"><div class="t"><b>Testar sons</b></div><button class="btn sm" data-act="testRest">Descanso</button><button class="btn sm" data-act="testCount">Contagem</button><button class="btn sm" data-act="testStart">Início</button></div>
   ${NAT ? '' : tg('mediaCtl', 'Controles na notificação (experimental)', 'Durante o treino, mostra série, reps e carga na notificação de mídia do celular, com Próximo, Voltar e Pausa. Depende do navegador permitir. Atenção: pode pausar o Spotify, porque o celular só mostra um player de mídia por vez.')}
@@ -1957,7 +1957,12 @@ function natSteps(T) {
   const rems = (from, s0) => !(+S.settings.remindEvery > 0) ? [] : Array.from({length: 6}, (_, k) => ({at: from + (k + 1) * remMs(), title: 'Hora de começar', body, sound: s0, rem: true, from}));
   const voice = endAt => S.settings.countMode === 'voz' ? [3, 2, 1].map(n => ({at: endAt - n * 1000, say: String(n), silent: true})).filter(x => x.at > Date.now() + 300) : [];
   const steps = [];
-  if (run.phase === 'rest') steps.push({at: T, title: 'Fim do descanso', body, sound: rs, notif: waitPatch(T, 'rest')}, ...rems(T, rs));   // espera o toque
+  if (run.phase === 'rest') {
+    const pr = curPrep();
+    if (!S.settings.continuous) steps.push({at: T, title: 'Fim do descanso', body, sound: rs, notif: waitPatch(T, 'rest')}, ...rems(T, rs));   // espera o toque
+    else if (pr > 0) { const T2 = T + pr * 1000; steps.push({at: T, title: 'Fim do descanso', body, sound: rs, notif: {label: 'PREPARE-SE', color: NCOL.prepare, chrono: 'down', endAt: T2, paused: false, actions: natActions('prepare', false)}}, ...voice(T2), {at: T2, title: 'Começar a série', body, sound: ss, notif: execPatch(T2)}); }
+    else steps.push({at: T, title: 'Fim do descanso', body, sound: rs, notif: execPatch(T)});
+  }
   else if (run.phase === 'prepare') {
     if (S.settings.continuous) steps.push(...voice(T), {at: T, title: 'Começar a série', body, sound: ss, notif: execPatch(T)});   // emenda na execução
     else steps.push(...voice(T), {at: T, title: 'Hora de começar', body, sound: ss, notif: waitPatch(T, 'prepare')}, ...rems(T, ss));
@@ -2555,8 +2560,8 @@ function runDue() {
     if (!quiet) { if (P0 === 'prepare') startSound(); else if (P0 === 'rest') { restEndSound(); buzz(); } else { beep(2); buzz(); } }
     if (P0 === 'prepare') run.sndDone = true;
     // a execução só começa com um toque: descanso/preparo vencidos ficam esperando, com o tempo negativo (conta como descanso)
-    // só o fim do descanso espera o toque; o preparo emenda direto na execução
-    if (P0 === 'rest' || (P0 === 'prepare' && !S.settings.continuous)) { remindStart(endAt); moved = true; break; }
+    // contínuo: descanso → preparo → execução sozinhos. Sem contínuo: o fim do descanso/preparo espera o toque (tempo negativo + apito repetido)
+    if (!S.settings.continuous && (P0 === 'rest' || P0 === 'prepare')) { remindStart(endAt); moved = true; break; }
     if (P0 === 'exec' && !S.settings.continuous) break;
     runNext(); moved = true;
     if (run && run.phase !== 'done') {
@@ -3082,7 +3087,7 @@ if (!inClaude() && navigator.storage && navigator.storage.persist) navigator.sto
 </script>
 
 <script>
-if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202611081654').catch(() => {});
+if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202611081703').catch(() => {});
 </script>
 </body>
 </html>
