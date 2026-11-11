@@ -8,20 +8,12 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
-import android.media.AudioAttributes;
-import android.media.AudioFocusRequest;
-import android.media.AudioManager;
-import android.media.MediaPlayer;
-import android.net.Uri;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.Build;
 import android.os.SystemClock;
 import android.view.View;
 import android.widget.RemoteViews;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
-import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -41,9 +33,10 @@ public class FerroNotifPlugin extends Plugin {
     static final int NOTIF_ID = 7001;
     static final String ACTION = "com.eduberigo.diariodeferro.NOTIF";
     static FerroNotifPlugin instance;
-    static volatile JSONObject last;          // último conteúdo da notificação do treino (para o alarme avançar sozinho)
-    static volatile boolean fg = true;        // app na frente: quem toca os sons é a página
+    static volatile JSONObject last;          // último conteúdo da notificação do treino (para a linha do tempo avançar sozinha)
+    static volatile boolean fg = true;        // app na frente: o aviso em destaque (com vibração) só aparece em segundo plano
     static volatile long lastTouch = 0L;      // último toque do usuário (app ou notificação): para os lembretes
+    private static final String K_LAST = "lastNotif";
 
     @Override
     protected void handleOnResume() { fg = true; lastTouch = System.currentTimeMillis(); }
@@ -55,76 +48,26 @@ public class FerroNotifPlugin extends Plugin {
     public void load() {
         instance = this;
         createChannel(getContext());
-        ttsInit(getContext());
+        FerroSound.loadConfig(getContext());
+        FerroSound.ttsInit(getContext());
     }
 
-    // ---------- voz do Android para a contagem regressiva (a página não tem voz dentro do app) ----------
-    static android.speech.tts.TextToSpeech tts;
-    static volatile boolean ttsOk = false;
+    /** Som e linha do tempo rodam na thread principal; uma falha ali não pode derrubar o app. */
+    static void onMain(Runnable r) {
+        FerroSound.MAIN.post(() -> {
+            try {
+                r.run();
+            } catch (Throwable ignored) {}
+        });
+    }
 
-    static void ttsInit(Context ctx) {
-        if (tts != null) return;
+    /** Avisa a página que um passo da linha do tempo aconteceu (ela avança a fase e redesenha). */
+    static void tick() {
+        FerroNotifPlugin p = instance;
+        if (p == null || p.getBridge() == null) return;
         try {
-            tts = new android.speech.tts.TextToSpeech(ctx.getApplicationContext(), st -> {
-                if (st == android.speech.tts.TextToSpeech.SUCCESS && tts != null) {
-                    tts.setLanguage(new java.util.Locale("pt", "BR"));
-                    tts.setSpeechRate(1.15f);
-                    ttsOk = true;
-                }
-            });
+            p.fire("tick");
         } catch (Exception ignored) {}
-    }
-
-    static void say(Context ctx, String text) {
-        ttsInit(ctx);
-        if (!ttsOk || text == null || text.isEmpty()) return;
-        try {
-            tts.setAudioAttributes(attrsFor(ctx, true));
-            android.os.Bundle b = new android.os.Bundle();
-            b.putFloat(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_VOLUME, 1f);
-            tts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, b, "ferro");
-        } catch (Exception ignored) {}
-    }
-
-    @PluginMethod
-    public void speak(PluginCall call) {
-        say(getContext(), call.getString("text", ""));
-        call.resolve();
-    }
-
-    /** fone ou Bluetooth conectado? (aí o som vai só para eles, pelo canal de mídia) */
-    static boolean headset(Context ctx) {
-        AudioManager am = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
-        if (am == null) return false;
-        try {
-            for (android.media.AudioDeviceInfo d : am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
-                int t = d.getType();
-                if (t == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || t == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-                    || t == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET || t == android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES
-                    || t == android.media.AudioDeviceInfo.TYPE_USB_HEADSET) return true;
-                if (Build.VERSION.SDK_INT >= 31 && (t == android.media.AudioDeviceInfo.TYPE_BLE_HEADSET || t == android.media.AudioDeviceInfo.TYPE_BLE_SPEAKER)) return true;
-            }
-        } catch (Exception ignored) {}
-        return false;
-    }
-
-    /** sem fone: canal de alarme (alto, segue o volume de alarme); com fone/Bluetooth: canal de mídia, só no fone
-        (o Android toca alarme no alto-falante do celular também, mesmo com Bluetooth) */
-    static AudioAttributes attrsFor(Context ctx, boolean speech) {
-        boolean hs = headset(ctx);
-        return new AudioAttributes.Builder()
-            .setUsage(hs ? AudioAttributes.USAGE_MEDIA : AudioAttributes.USAGE_ALARM)
-            .setContentType(speech ? AudioAttributes.CONTENT_TYPE_SPEECH : AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build();
-    }
-
-    /** som pelo nome: "snd:apito" = res/raw/ferro_s_apito.wav; "bell"/"beep3" = os antigos */
-    static int soundRes(Context ctx, String sound) {
-        if (sound != null && sound.startsWith("snd:")) {
-            int id = ctx.getResources().getIdentifier("ferro_s_" + sound.substring(4), "raw", ctx.getPackageName());
-            if (id != 0) return id;
-        }
-        return "bell".equals(sound) ? R.raw.ferro_bell : R.raw.ferro_beep3;
     }
 
     static void createChannel(Context ctx) {
@@ -149,58 +92,32 @@ public class FerroNotifPlugin extends Plugin {
             ch.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
             nm.createNotificationChannel(ch);
         }
+        if (nm.getNotificationChannel(ALERT_CH_Q) == null) {
+            NotificationChannel ch = new NotificationChannel(ALERT_CH_Q, "Aviso de fim do cronômetro (sem vibrar)", NotificationManager.IMPORTANCE_HIGH);
+            ch.setDescription("O mesmo aviso, para quando a vibração está desligada nos Ajustes do app");
+            ch.setSound(null, null);
+            ch.enableVibration(false);
+            ch.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+            nm.createNotificationChannel(ch);
+        }
         try {
             nm.deleteNotificationChannel("ferro-treino");
         } catch (Exception ignored) {}
     }
 
-    // ---------- aviso de fim do cronômetro (alarme próprio, funciona com o app em segundo plano) ----------
+    // ---------- aviso em destaque quando uma fase termina com o app em segundo plano (sem som: o som é do FerroSound) ----------
     static final String ALERT_CH = "ferro-aviso";
+    static final String ALERT_CH_Q = "ferro-aviso-mudo";
     static final int ALERT_ID = 7002;
 
-    static PendingIntent alarmIntent(Context ctx, String title, String body, String sound) {
-        return alarmIntent(ctx, title, body, sound, 0L, null, null, null);
-    }
-
-    /** next*: um segundo aviso encadeado (ex.: fim do preparo logo depois do fim do descanso), agendado pelo próprio receptor */
-    static PendingIntent alarmIntent(Context ctx, String title, String body, String sound, long nextAt, String nextTitle, String nextBody, String nextSound) {
-        Intent i = new Intent(ctx, FerroAlarmReceiver.class);
-        i.setAction(ACTION + ".ALARM");
-        if (title != null) i.putExtra("title", title);
-        if (body != null) i.putExtra("body", body);
-        if (sound != null) i.putExtra("sound", sound);
-        if (nextAt > 0) {
-            i.putExtra("nextAt", nextAt);
-            i.putExtra("nextTitle", nextTitle);
-            i.putExtra("nextBody", nextBody);
-            i.putExtra("nextSound", nextSound);
-        }
-        return PendingIntent.getBroadcast(ctx, 200, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-    }
-
+    /** Linha do tempo da fase: a página manda todos os passos de uma vez (ver FerroTimeline). */
     @PluginMethod
     public void alarm(PluginCall call) {
-        Context ctx = getContext();
-        createChannel(ctx);
-        long at = call.getData().optLong("at", 0L);
-        AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
-        if (am == null || at <= System.currentTimeMillis()) {
-            call.resolve();
-            return;
-        }
-        String steps = call.getString("steps", null);
-        PendingIntent pi = steps != null ? stepsIntent(ctx, steps)
-            : alarmIntent(ctx, call.getString("title", "Diário de Ferro"), call.getString("body", ""), call.getString("sound", "beep3"));
-        schedule(am, at, pi);
+        final Context ctx = getContext().getApplicationContext();
+        final String steps = call.getString("steps", null);
+        final String key = call.getString("key", "");
+        if (steps != null) onMain(() -> FerroTimeline.set(ctx, key, steps));
         call.resolve();
-    }
-
-    /** Sequência de avisos: cada um com hora, som, texto e, se houver, a mudança da notificação; o receptor agenda o seguinte. */
-    static PendingIntent stepsIntent(Context ctx, String steps) {
-        Intent i = new Intent(ctx, FerroAlarmReceiver.class);
-        i.setAction(ACTION + ".ALARM");
-        i.putExtra("steps", steps);
-        return PendingIntent.getBroadcast(ctx, 200, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     static void schedule(AlarmManager am, long at, PendingIntent pi) {
@@ -214,9 +131,8 @@ public class FerroNotifPlugin extends Plugin {
 
     @PluginMethod
     public void cancelAlarm(PluginCall call) {
-        Context ctx = getContext();
-        AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
-        if (am != null) am.cancel(alarmIntent(ctx, null, null, null));
+        final Context ctx = getContext().getApplicationContext();
+        onMain(() -> FerroTimeline.clear(ctx));
         call.resolve();
     }
 
@@ -226,11 +142,70 @@ public class FerroNotifPlugin extends Plugin {
         call.resolve();
     }
 
-    /** Mostra o aviso (fica ~10 s na tela) e toca o som abaixando a música só durante ele. */
-    static void fireAlert(Context ctx, String title, String body, String sound, Runnable done) {
+    /** O usuário tocou em algo no app: os lembretes repetidos param. */
+    @PluginMethod
+    public void touch(PluginCall call) {
+        lastTouch = System.currentTimeMillis();
+        call.resolve();
+    }
+
+    /** Toca um som agora (ex.: som de início ao tocar em "Começar", testes dos Ajustes). */
+    @PluginMethod
+    public void play(PluginCall call) {
+        final Context ctx = getContext().getApplicationContext();
+        final String sound = call.getString("sound", "snd:bipe");
+        final long hold = call.getData().optLong("hold", 0L);
+        onMain(() -> FerroSound.play(ctx, sound, hold));
+        call.resolve();
+    }
+
+    /** Fala um texto com a voz do Android; "alt" é o som que toca se a voz não estiver disponível. */
+    @PluginMethod
+    public void speak(PluginCall call) {
+        final Context ctx = getContext().getApplicationContext();
+        final String text = call.getString("text", "");
+        final String alt = call.getString("alt", "");
+        onMain(() -> FerroSound.say(ctx, text, alt));
+        call.resolve();
+    }
+
+    /** Volume dos avisos: vol = % do volume de alarme durante o aviso (0 = não mexer); boost = reforço em milibéis. */
+    @PluginMethod
+    public void config(PluginCall call) {
+        FerroSound.config(getContext(), call.getData().optInt("vol", 100), call.getData().optInt("boost", 600));
+        call.resolve();
+    }
+
+    /** Diagnóstico de som para a tela de Ajustes. */
+    @PluginMethod
+    public void status(PluginCall call) {
+        Context ctx = getContext();
+        JSObject r = new JSObject();
+        try {
+            JSONObject o = FerroSound.status(ctx);
+            java.util.Iterator<String> it = o.keys();
+            while (it.hasNext()) {
+                String k = it.next();
+                r.put(k, o.get(k));
+            }
+            AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+            r.put("exact", am != null && (Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()));
+            r.put("notif", NotificationManagerCompat.from(ctx).areNotificationsEnabled());
+            r.put("service", FerroWorkoutService.running);
+            r.put("fg", fg);
+            r.put("pending", FerroTimeline.pending());
+            android.os.PowerManager pm = (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+            r.put("battery", pm != null && Build.VERSION.SDK_INT >= 23 && pm.isIgnoringBatteryOptimizations(ctx.getPackageName()));
+            r.put("sdk", Build.VERSION.SDK_INT);
+        } catch (Throwable ignored) {}
+        call.resolve(r);
+    }
+
+    /** Aviso em destaque (fica ~10 s na tela), com ou sem vibração. Não toca som. */
+    static void showAlert(Context ctx, String title, String body, boolean vib) {
         createChannel(ctx);
         Intent open = ctx.getPackageManager().getLaunchIntentForPackage(ctx.getPackageName());
-        NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, ALERT_CH)
+        NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, vib ? ALERT_CH : ALERT_CH_Q)
             .setSmallIcon(R.drawable.ic_stat_ferro)
             .setColor(0xFF4D96E8)
             .setContentTitle(title)
@@ -238,56 +213,13 @@ public class FerroNotifPlugin extends Plugin {
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setVibrate(new long[] {0, 260, 140, 260})
-            .setSilent(false)
             .setAutoCancel(true)
             .setTimeoutAfter(10000);
+        if (vib) b.setVibrate(new long[] {0, 260, 140, 260});
         if (open != null) b.setContentIntent(PendingIntent.getActivity(ctx, 1, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
         try {
             NotificationManagerCompat.from(ctx).notify(ALERT_ID, b.build());
         } catch (SecurityException ignored) {}
-        playWithDuck(ctx, soundRes(ctx, sound), done);
-    }
-
-    @SuppressWarnings("deprecation")
-    static void playWithDuck(Context ctx, int res, Runnable done) {
-        AudioManager am = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
-        AudioAttributes attrs = attrsFor(ctx, false);
-        final AudioFocusRequest req = Build.VERSION.SDK_INT >= 26
-            ? new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).setAudioAttributes(attrs).setOnAudioFocusChangeListener(f -> {}).build()
-            : null;
-        final AudioManager.OnAudioFocusChangeListener legacy = f -> {};
-        if (am != null) {
-            if (req != null) am.requestAudioFocus(req);
-            else am.requestAudioFocus(legacy, AudioManager.STREAM_NOTIFICATION, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
-        }
-        final Handler h = new Handler(Looper.getMainLooper());
-        final Runnable finish = () -> {
-            if (am != null) {
-                if (req != null) am.abandonAudioFocusRequest(req);
-                else am.abandonAudioFocus(legacy);
-            }
-            if (done != null) done.run();
-        };
-        try {
-            MediaPlayer mp = new MediaPlayer();
-            mp.setAudioAttributes(attrs);
-            mp.setDataSource(ctx, Uri.parse("android.resource://" + ctx.getPackageName() + "/" + res));
-            mp.setOnCompletionListener(m -> {
-                m.release();
-                h.postDelayed(finish, 350);
-            });
-            mp.setOnErrorListener((m, w, x) -> {
-                m.release();
-                finish.run();
-                return true;
-            });
-            mp.prepare();
-            mp.setVolume(1f, 1f);
-            mp.start();
-        } catch (Exception e) {
-            finish.run();
-        }
     }
 
     void fire(String action) {
@@ -346,6 +278,9 @@ public class FerroNotifPlugin extends Plugin {
             JSONObject d = new JSONObject(call.getData().toString());
             Notification n = build(ctx, d);
             last = d;
+            try {
+                FerroSound.prefs(ctx).edit().putString(K_LAST, d.toString()).apply();
+            } catch (Exception ignored) {}
             NotificationManagerCompat.from(ctx).notify(NOTIF_ID, n);
             FerroWorkoutService.start(ctx, n);
             call.resolve();
@@ -356,18 +291,27 @@ public class FerroNotifPlugin extends Plugin {
         }
     }
 
-    /** Alarme sem a página: aplica a próxima fase (rótulo, cor, cronômetro, botões) sobre o último conteúdo. */
+    /** Linha do tempo sem a página: aplica a próxima fase (rótulo, cor, cronômetro, botões) sobre o último conteúdo. */
     static void applyPatch(Context ctx, JSONObject patch) {
         JSONObject base = last;
+        if (base == null) {
+            try {
+                String saved = FerroSound.prefs(ctx).getString(K_LAST, null);
+                if (saved != null) base = new JSONObject(saved);
+            } catch (Exception ignored) {}
+        }
         if (base == null || patch == null) return;
         try {
             JSONObject d = new JSONObject(base.toString());
             java.util.Iterator<String> it = patch.keys();
-            while (it.hasNext()) { String k = it.next(); d.put(k, patch.get(k)); }
+            while (it.hasNext()) {
+                String k = it.next();
+                d.put(k, patch.get(k));
+            }
             Notification n = build(ctx, d);
             last = d;
             NotificationManagerCompat.from(ctx).notify(NOTIF_ID, n);
-            FerroWorkoutService.current = n;
+            FerroWorkoutService.start(ctx, n);   // atualiza a do serviço; se o serviço caiu, tenta reerguer
         } catch (Exception ignored) {}
     }
 
@@ -443,63 +387,17 @@ public class FerroNotifPlugin extends Plugin {
     }
 
 
-    // ---------- foco de áudio: abaixa a música só durante os sons do app ----------
-    private AudioManager am;
-    private AudioFocusRequest afr;
-    private boolean focusHeld = false;
-    private final Handler handler = new Handler(Looper.getMainLooper());
-    private final Runnable releaseFocus = this::releaseFocus;
-    private final AudioManager.OnAudioFocusChangeListener focusListener = change -> {};
-
-    @SuppressWarnings("deprecation")
-    private void releaseFocus() {
-        if (am == null || !focusHeld) return;
-        if (Build.VERSION.SDK_INT >= 26 && afr != null) am.abandonAudioFocusRequest(afr);
-        else am.abandonAudioFocus(focusListener);
-        focusHeld = false;
-    }
-
-    @SuppressWarnings("deprecation")
-    @PluginMethod
-    public void duck(PluginCall call) {
-        long ms = Math.max(300L, Math.min(30000L, call.getData().optLong("ms", 1500L)));
-        handler.post(() -> {
-            if (am == null) am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
-            if (am == null) return;
-            if (!focusHeld) {
-                int r;
-                if (Build.VERSION.SDK_INT >= 26) {
-                    if (afr == null) {
-                        afr = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
-                            .setAudioAttributes(new AudioAttributes.Builder()
-                                .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                                .build())
-                            .setOnAudioFocusChangeListener(focusListener)
-                            .build();
-                    }
-                    r = am.requestAudioFocus(afr);
-                } else {
-                    r = am.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
-                }
-                focusHeld = r == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
-            }
-            handler.removeCallbacks(releaseFocus);
-            handler.postDelayed(releaseFocus, ms);
-        });
-        call.resolve();
-    }
-
-    @Override
-    protected void handleOnDestroy() {
-        handler.removeCallbacks(releaseFocus);
-        releaseFocus();
-    }
-
     @PluginMethod
     public void hide(PluginCall call) {
-        FerroWorkoutService.stop(getContext());
-        NotificationManagerCompat.from(getContext()).cancel(NOTIF_ID);
+        final Context ctx = getContext().getApplicationContext();
+        onMain(() -> FerroTimeline.clear(ctx));
+        last = null;
+        try {
+            FerroSound.prefs(ctx).edit().remove(K_LAST).apply();
+        } catch (Exception ignored) {}
+        FerroWorkoutService.stop(ctx);
+        NotificationManagerCompat.from(ctx).cancel(NOTIF_ID);
+        NotificationManagerCompat.from(ctx).cancel(ALERT_ID);
         call.resolve();
     }
 }

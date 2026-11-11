@@ -68,6 +68,10 @@ public class FerroWorkoutService extends Service {
     public void onTaskRemoved(Intent rootIntent) {
         // app fechado pela lista de recentes: some com a notificação, que ficaria com botões mortos
         NotificationManagerCompat.from(this).cancel(FerroNotifPlugin.NOTIF_ID);
+        NotificationManagerCompat.from(this).cancel(FerroNotifPlugin.ALERT_ID);
+        try {
+            FerroTimeline.clear(getApplicationContext());   // app fechado: os avisos pendentes param
+        } catch (Throwable ignored) {}
         stopSelf();
         super.onTaskRemoved(rootIntent);
     }

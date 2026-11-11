@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- os sons são abertos pelo nome (FerroSound.soundRes): não podem ser removidos como "recurso sem uso" -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@raw/ferro_*" />
