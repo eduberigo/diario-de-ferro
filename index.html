@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12161b">
-<script>window.FERRO_BUILD = '202611112027';</script>
+<script>window.FERRO_BUILD = '202611130400';</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -218,7 +218,7 @@ textarea{min-height:90px;resize:vertical}
 .step button{width:48px;height:48px;border-radius:12px;background:var(--surface2);font:600 24px var(--display)}
 .step input{text-align:center;font:700 28px var(--display);padding:6px}
 .pick{display:flex;flex-direction:column}
-.modal #pq{position:sticky;top:-20px;z-index:2;box-shadow:0 0 0 12px var(--surface)}
+.modal #pq,.modal #sq{position:sticky;top:-20px;z-index:2;box-shadow:0 0 0 12px var(--surface)}
 body.kb .scrim{align-items:flex-start}
 body.kb .modal{border-radius:0 0 22px 22px;max-height:var(--vvh,100vh)}
 .pk{border-bottom:1px solid var(--line)}
@@ -284,7 +284,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
 .photos img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;background:var(--surface2)}
 .serow{display:grid;grid-template-columns:24px 1fr 1fr 1fr 52px 58px 28px;gap:6px;align-items:center;margin-top:6px}
-.serow input,.serow select{padding:8px 6px;text-align:center}
+.serow input,.serow select{padding:8px 6px;text-align:center}.serow.cw{grid-template-columns:26px 1fr 28px;align-items:start;margin-top:10px}.serow.cw>.sn{margin-top:8px}.serow.cw .fr input{text-align:left;padding:10px 12px}
 .hset{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
 .hset:last-child{border-bottom:0}
 .dayhead{display:flex;align-items:center;justify-content:space-between;margin-top:18px}
@@ -1175,7 +1175,7 @@ function homeView() {
 function workoutView() {
   const f = findW(view.id); if (!f) return '<div class="empty">Treino não encontrado.</div>';
   const {w} = f, e = est(w), m = musclesOf(w), gt = groupTotals(w.exercises);
-  const rows = w.exercises.map((x, i) => { const l = getEx(x.exId), lk = x.link || (i > 0 && w.exercises[i - 1].link); return `<div class="exrow${lk ? ' linked' : ''}${x.link ? ' linknext' : ''}" data-drag="w" data-i="${i}">${tileOf(l).replace('tile sm', 'tile')}<div class="t" data-act="editEx" data-i="${i}" style="cursor:pointer"><b>${esc(l.name)}</b>${(x.variant || x.grip) ? `${x.variant ? `<span class="chip">${esc(x.variant)}</span> ` : ''}${x.grip ? `<span class="chip">Pegada ${esc(x.grip.toLowerCase())}</span>` : ''}<br>` : ''}<span class="muted small num">${exLine(x)}${l.type !== 'time' ? ' • RIR ' + (new Set(x.rir).size > 1 ? x.rir.join('/') : x.rir[0]) : ''}</span>${x.link ? '<br><span class="linktag">⛓ combinado com o próximo</span>' : ''}</div><button class="ib" data-act="exMenu" data-i="${i}" aria-label="Opções do exercício">${ic('more')}</button></div>`; }).join('');
+  const rows = w.exercises.map((x, i) => { const l = getEx(x.exId), lk = x.link || (i > 0 && w.exercises[i - 1].link); return `<div class="exrow${lk ? ' linked' : ''}${x.link ? ' linknext' : ''}" data-drag="w" data-i="${i}">${tileOf(l).replace('tile sm', 'tile')}<div class="t" data-act="editEx" data-i="${i}" style="cursor:pointer"><b>${esc(l.name)}</b>${(x.variant || x.grip) ? `${x.variant ? `<span class="chip">${esc(x.variant)}</span> ` : ''}${x.grip ? `<span class="chip">Pegada ${esc(x.grip.toLowerCase())}</span>` : ''}<br>` : ''}<span class="muted small num">${exLine(x)}${l.type !== 'time' ? ' • RIR ' + (new Set(x.rir).size > 1 ? x.rir.join('/') : x.rir[0]) : ''}</span>${x.uni ? '<br><span class="linktag">↔ um lado de cada vez</span>' : ''}${x.link ? '<br><span class="linktag">⛓ combinado com o próximo</span>' : ''}</div><button class="ib" data-act="exMenu" data-i="${i}" aria-label="Opções do exercício">${ic('more')}</button></div>`; }).join('');
   return `<div class="top"><button class="ib" data-act="back" aria-label="Voltar">${ic('back')}</button><h1>${esc(w.name)}</h1><button class="ib" data-act="wMenu" aria-label="Opções do treino">${ic('more')}</button></div>
   ${run && run.phase !== 'done' && run.workoutId === w.id ? '<div class="card small" style="padding:10px 12px;margin-bottom:12px;border-color:var(--accent)">Este treino está em andamento. Mudanças <b>nesta tela</b> alteram o treino oficial; para mudar só hoje, faça na tela do treino em execução.</div>' : ''}
   <div class="chips" style="margin:-2px 0 12px;align-items:center">${(w.groups || []).map(g => `<span class="mchip">${g}</span>`).join('') || '<span class="muted small">Nenhum grupo muscular definido</span>'}<button class="mchip" data-act="editWG" style="color:var(--accent)">Editar grupos</button></div>
@@ -1364,7 +1364,7 @@ const ACC = {
 Object.assign(GRIPS, DOC_GRIPS); Object.assign(ACC, DOC_ACC);
 const vkey = e => (e.variant || '') + '|' + (e.grip || '');
 const vkLabel = k => { const [v, g] = k.split('|'); return [v, g ? 'pegada ' + g.toLowerCase() : ''].filter(Boolean).join(' · ') || 'Sem variação'; };
-const vset = x => x.done && !x.warm;
+const vset = x => x.done && !x.warm && x.side !== 'D';   // unilateral: o par esquerda + direita conta como uma série
 const exLabel = e => e.name + (e.variant ? ' · ' + e.variant : '') + (e.grip ? ' · pegada ' + e.grip.toLowerCase() : '');
 const kgLb = v => `${Math.round(v)} kg · ${Math.round(v * LB)} lb`;
 function dupWorkout(id) { const f = findW(id), c = JSON.parse(JSON.stringify(f.w)); c.id = uid(); c.name += ' (cópia)'; c.exercises.forEach(e => e.id = uid()); f.r.workouts.splice(f.r.workouts.indexOf(f.w) + 1, 0, c); persist(); }
@@ -1441,8 +1441,33 @@ const kmMiTxt = km => `${fmtN(Math.round(km * 100) / 100)} km (${fmtN(Math.round
 const kmMiIn = (id, km) => `<div class="kmmi"><input type="text" inputmode="decimal" id="${id}" data-dk="km" value="${km != null ? fmtN(Math.round(km * 100) / 100) : ''}" placeholder="km" aria-label="Distância em km"><span>km</span><input type="text" inputmode="decimal" id="${id}_mi" data-dk="mi" value="${km != null ? fmtN(Math.round(km / MI * 100) / 100) : ''}" placeholder="mi" aria-label="Distância em milhas"><span>mi</span></div>`;
 const readKm = id => { const k = val(id), m = val(id + '_mi'); if (k !== '') return Math.max(0, num(k)); if (m !== '') return Math.max(0, num(m) * MI); return null; };
 const cardioExtra = x => [x.hr ? `FC média ${x.hr} bpm` : '', x.kcal ? `${x.kcal} kcal` : ''].filter(Boolean).join(' · ');
-const hrKcalIn = (id, x) => `<div class="fr"><div class="field"><label class="lbl" for="${id}_hr">FC média (bpm)</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="${id}_hr" value="${x.hr ?? ''}" placeholder="ex.: 135"></div><div class="field"><label class="lbl" for="${id}_kc">Calorias (kcal)</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="${id}_kc" value="${x.kcal ?? ''}" placeholder="do relógio/aparelho"></div></div>`;
-const readHrKcal = (id, x) => { const h = val(id + '_hr'), k = val(id + '_kc'); x.hr = h === '' ? null : Math.max(0, Math.round(num(h))); x.kcal = k === '' ? null : Math.max(0, Math.round(num(k))); };
+/* calorias do cardio: pela FC média (Keytel) quando houver; senão pela velocidade na esteira; senão pelo MET do aparelho (Compendium 2011) */
+const CARDIO_MET = {bike: 7.0, eliptico: 5.0, remo: 4.8, corda: 11.8, esteira: 5.0};
+const SPEED_MET = [[3.2, 2.8], [4.8, 3.5], [5.6, 4.3], [6.4, 5.0], [7.2, 7.0], [8.0, 8.3], [9.7, 9.8], [11.3, 11.0], [12.9, 11.8], [14.5, 12.8], [16.1, 14.5]];
+function speedMet(kmh) { const T = SPEED_MET; if (kmh <= T[0][0]) return T[0][1]; for (let i = 1; i < T.length; i++) if (kmh <= T[i][0]) { const [a, ma] = T[i - 1], [b, mb] = T[i]; return ma + (mb - ma) * (kmh - a) / (b - a); } return T[T.length - 1][1]; }
+function cardioKcal(exId, secs, km, hr) {
+  if (!(secs > 0)) return null;
+  const k = kcalHR(hr, secs * 1000); if (k != null && k > 0) return {kcal: k, how: 'pela FC média'};
+  const kmh = km > 0 ? km / (secs / 3600) : 0, run = exId === 'esteira' || /corrida|caminhada/i.test((getEx(exId) || {}).name || '');
+  const met = run && kmh >= 2 && kmh <= 25 ? speedMet(kmh) : CARDIO_MET[exId] || 6;
+  return {kcal: Math.round(met * rate() * secs / 3600), how: run && kmh >= 2 ? 'pela velocidade' : 'pelo tempo'};
+}
+/* campo de calorias: o app preenche sozinho e atualiza enquanto você digita tempo, distância e FC; se você digitar as suas, ficam as suas */
+const hrKcalIn = (id, x, exId, durId, kmId) => { const man = x.kcal != null && !x.kcalAuto, e = man ? null : cardioKcal(exId, x.actual || x.secs, x.km, x.hr); return `<div class="fr"><div class="field"><label class="lbl" for="${id}_hr">FC média (bpm)</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="${id}_hr" value="${x.hr ?? ''}" placeholder="ex.: 135"></div><div class="field"><label class="lbl" for="${id}_kc">Calorias (kcal)</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="${id}_kc" value="${man ? x.kcal : e ? e.kcal : ''}" data-ce="${esc(exId || '')}" data-dur="${durId || ''}" data-km="${kmId || ''}" data-c="${id}" data-auto="${man ? 0 : 1}" placeholder="do relógio"></div></div><div class="muted small" id="${id}_kn" style="margin-top:-2px">${kcNote(man, e)}</div>`; };
+const kcNote = (man, e) => man ? 'Calorias digitadas por você: o app não recalcula.' : e ? `Calculado pelo app ${e.how}. Digite as do relógio para substituir.` : 'Preencha a duração para o app calcular.';
+function kcRefresh() {
+  document.querySelectorAll('input[data-ce]').forEach(el => {
+    if (el.dataset.auto !== '1') return;
+    const secs = el.dataset.dur ? readHms(el.dataset.dur) : 0, km = el.dataset.km ? readKm(el.dataset.km) : null, h = val(el.dataset.c + '_hr'), e = cardioKcal(el.dataset.ce, secs, km, h === '' ? null : num(h));
+    el.value = e ? e.kcal : ''; const n = document.getElementById(el.dataset.c + '_kn'); if (n) n.textContent = kcNote(false, e);
+  });
+}
+const readHrKcal = (id, x, exId, secs) => {
+  const h = val(id + '_hr'), k = val(id + '_kc'), el = document.getElementById(id + '_kc'), auto = !el || el.dataset.auto === '1' || k === '';
+  x.hr = h === '' ? null : Math.max(0, Math.round(num(h)));
+  if (auto) { const e = cardioKcal(exId || (el && el.dataset.ce), secs != null ? secs : (x.actual || x.secs), x.km, x.hr); x.kcal = e ? e.kcal : null; x.kcalAuto = true; }
+  else { x.kcal = Math.max(0, Math.round(num(k))); delete x.kcalAuto; }
+};
 const paceTxt = (sec, km) => km > 0 && sec > 0 ? `${fmtHms(sec / km)}/km · ${fmtHms(sec / (km / MI))}/mi` : '';
 const hmsIn = (id, sec) => { sec = Math.max(0, Math.round(sec || 0)); return `<div class="hms"><input type="text" inputmode="numeric" pattern="[0-9]*" id="${id}_h" value="${Math.floor(sec / 3600)}" aria-label="Horas"><span>h</span><input type="text" inputmode="numeric" pattern="[0-9]*" id="${id}_m" value="${Math.floor(sec % 3600 / 60)}" aria-label="Minutos"><span>min</span><input type="text" inputmode="numeric" pattern="[0-9]*" id="${id}_s" value="${sec % 60}" aria-label="Segundos"><span>s</span></div>`; };
 const readHms = id => Math.max(0, Math.round(num(val(id + '_h')) * 3600 + num(val(id + '_m')) * 60 + num(val(id + '_s'))));
@@ -1689,10 +1714,11 @@ const cap1 = t => t.charAt(0).toUpperCase() + t.slice(1);
 /* ---------- editor de sessão (adicionar / editar treino feito) ---------- */
 let draft = null;
 const toLocal = iso => { const d = new Date(iso); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()); };
-const newSet = l => l.type === 'time' ? {secs: 30, done: true} : {reps: 10, kg: 0, rir: S.settings.defaultRir, done: true};
+const newSet = l => isCardio(l) ? {secs: 1200, done: true} : l.type === 'time' ? {secs: 30, done: true} : {reps: 10, kg: 0, rir: S.settings.defaultRir, done: true};
+const newSets = l => isCardio(l) ? [newSet(l)] : [newSet(l), newSet(l), newSet(l)];
 function selDate() { const k = view.sel || dkey(new Date()), [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d, 18, 0).toISOString(); }
 function sessFromWorkout(w, date) {
-  return {id: uid(), date, name: w.name, routine: '', durMs: est(w).min * 60000, manual: true, exercises: w.exercises.map(e => { const l = getEx(e.exId); return {exId: e.exId, name: l.name, variant: e.variant, grip: e.grip || '', note: '', sets: Array.from({length: e.sets}, (_, i) => l.type === 'time' ? {secs: e.secs, done: true} : {reps: e.repsMax, kg: e.kgMin, rir: (e.rir || [])[i] ?? S.settings.defaultRir, done: true})}; })};
+  return {id: uid(), date, name: w.name, routine: '', durMs: est(w).min * 60000, manual: true, exercises: w.exercises.map(e => { const l = getEx(e.exId); return {exId: e.exId, name: l.name, variant: e.variant, grip: e.grip || '', note: '', sets: Array.from({length: e.sets}, (_, i) => l.type === 'time' ? {secs: e.secs, done: true} : {reps: e.repsMax, kg: e.kgMin, rir: (e.rir || [])[i] ?? S.settings.defaultRir, done: true}).flatMap((x, i, a) => i ? [] : sides(a, e.uni && l.type !== 'time'))}; })};
 }
 /* par kg + lb ligado: digitar em um atualiza o outro; o valor exato digitado em lb fica guardado */
 const kgLbInputs = (id, kg) => `<input type="text" inputmode="decimal" id="${id}" data-lk="kg" data-pair="${id}_lb" value="${kg != null && kg !== '' ? fmtN(kg) : ''}" ${kg != null && kg !== '' ? `data-canon="${kg}"` : ''} aria-label="Carga em kg"><input type="text" inputmode="decimal" id="${id}_lb" data-lk="lb" data-pair="${id}" value="${kg != null && kg !== '' ? f1(kg * LB) : ''}" aria-label="Carga em libras">`;
@@ -1706,7 +1732,7 @@ function syncDraft() {
   if (g('se_hr')) draft.hr = Math.round(num(g('se_hr').value)) || null;
   draft.exercises.forEach((e, i) => e.sets.forEach((s, j) => {
     const t = g('se_s_' + i + '_' + j); if (t) s.secs = Math.max(0, Math.round(num(t.value)));
-    if (g('se_d_' + i + '_' + j + '_h')) { const du = readHms('se_d_' + i + '_' + j); s.secs = du; s.actual = du; s.km = readKm('se_k_' + i + '_' + j); readHrKcal('se_c_' + i + '_' + j, s); }
+    if (g('se_d_' + i + '_' + j + '_h')) { const du = readHms('se_d_' + i + '_' + j); s.secs = du; s.actual = du; s.km = readKm('se_k_' + i + '_' + j); readHrKcal('se_c_' + i + '_' + j, s, e.exId, du); }
     const r = g('se_r_' + i + '_' + j); if (r) { s.reps = Math.max(0, Math.round(num(r.value))); s.kg = Math.max(0, readKg('se_k_' + i + '_' + j)); { const rv = g('se_i_' + i + '_' + j).value; s.rir = rv === '' ? null : +rv; } }
     s.done = true;
   }));
@@ -1715,10 +1741,15 @@ function saveDraft() {
   syncDraft(); const d = draft; let reps = 0, vol = 0, sets = 0;
   d.exercises.forEach(e => e.sets.forEach(s => { if (s.warm) return; sets++; if (s.reps != null) { reps += s.reps; vol += s.reps * (s.kg || 0); } }));
   d.sets = sets; d.reps = reps; d.volume = vol;
+  const cs = d.exercises.filter(isCardio).flatMap(e => e.sets.filter(x => !x.warm)), allC = d.exercises.length > 0 && d.exercises.every(isCardio);
+  const cSecs = cs.reduce((a, x) => a + (x.actual || x.secs || 0), 0), cK = cs.reduce((a, x) => a + (x.kcal || 0), 0);
+  if (allC && cSecs > 0 && d.durMs === d.origDur) d.durMs = cSecs * 1000;   // treino só de cardio: a duração é a da atividade (se você não mexeu nela)
+  if (allC && !d.hr) { const h = cs.find(x => x.hr); if (h) d.hr = h.hr; }
   if (d._new || !d.kcal) d.kcal = Math.round(rate() * (d.durMs / 3600000) * 4.5);
   else if (d.origDur && d.origDur !== d.durMs) d.kcal = Math.round(d.kcal * d.durMs / d.origDur);
   if (d.tot && d.origDur !== d.durMs) delete d.tot;
   { const kh = kcalHR(d.hr, d.durMs); if (kh != null) d.kcal = kh; }
+  if (cK > 0) { const oMs = allC ? 0 : Math.max(0, d.durMs - cSecs * 1000), oK = oMs ? (kcalHR(d.hr, oMs) ?? Math.round(rate() * (oMs / 3600000) * 4.5)) : 0; d.kcal = Math.round(cK + oK); }
   const isNew = d._new; delete d._new; delete d.origDur;
   sessions = sessions.filter(x => x.id !== d.id); sessions.push(d); sessions.sort((a, b) => b.date.localeCompare(a.date));
   d.editedAt = Date.now(); persistSessions(); cloudSession(d); draft = null; back();
@@ -1784,9 +1815,9 @@ function seditView() {
     <div class="fr3" style="grid-template-columns:1.6fr 1fr 1fr"><div class="field"><label class="lbl" for="se_date">Data e hora</label><input type="datetime-local" id="se_date" value="${toLocal(d.date)}"></div><div class="field"><label class="lbl" for="se_hr">FC média (bpm)</label><input type="text" inputmode="numeric" id="se_hr" value="${d.hr || ''}" placeholder="opcional"></div><div class="field"><label class="lbl" for="se_dur">Duração (min)</label><input type="number" inputmode="numeric" id="se_dur" value="${Math.round(d.durMs / 60000)}"></div></div>
   </div>
   ${d.exercises.map((e, i) => { const l = getEx(e.exId), time = l.type === 'time'; return `<div class="card" style="padding:12px 14px;margin-top:14px"><div style="display:flex;align-items:center;gap:10px">${tileOf(l)}<b style="flex:1;min-width:0">${esc(exLabel(e))}</b><button class="ib" data-act="seDelEx" data-i="${i}" aria-label="Remover exercício">${ic('x')}</button></div>
-    <div class="serow muted small" style="margin-top:10px"><span>#</span>${time ? '<span>Segundos</span><span></span><span></span><span></span><span></span>' : '<span>Reps</span><span>kg</span><span>lb</span><span>RIR</span><span>Tipo</span>'}<span></span></div>
-    ${e.sets.map((st, j) => `<div class="serow"><span class="sn" style="width:26px;height:26px;font-size:13px">${setNo(e, j).sn}</span>${time && isCardio(e) ? `<div style="flex:1;display:grid;gap:6px">${hmsIn(`se_d_${i}_${j}`, st.actual || st.secs)}${kmMiIn(`se_k_${i}_${j}`, st.km)}${hrKcalIn(`se_c_${i}_${j}`, st)}</div>` : time ? `<input type="number" inputmode="numeric" id="se_s_${i}_${j}" value="${st.secs ?? 30}" aria-label="Segundos"><span></span><span></span><span></span><span></span>` : `<input type="number" inputmode="numeric" id="se_r_${i}_${j}" value="${st.reps ?? ''}" aria-label="Repetições">${kgLbInputs('se_k_' + i + '_' + j, st.kg)}<select id="se_i_${i}_${j}" aria-label="RIR">${rirOptsU(st.rir == null ? (st.warm ? S.settings.defaultRir : '') : st.rir)}</select><button class="wtag ${st.warm ? 'on' : ''}" data-act="seWarm" data-i="${i}" data-j="${j}" aria-pressed="${!!st.warm}">${st.warm ? 'Aquec.' : 'Válida'}</button>`}<button class="ib" data-act="seDelSet" data-i="${i}" data-j="${j}" aria-label="Remover série">${ic('x')}</button></div>`).join('')}
-    <button class="addset" data-act="seAddSet" data-i="${i}">+ Série</button></div>`; }).join('')}
+    ${time && isCardio(e) ? '' : `<div class="serow muted small" style="margin-top:10px"><span>#</span>${time ? '<span>Segundos</span><span></span><span></span><span></span><span></span>' : '<span>Reps</span><span>kg</span><span>lb</span><span>RIR</span><span>Tipo</span>'}<span></span></div>`}
+    ${e.sets.map((st, j) => `<div class="serow${time && isCardio(e) ? ' cw' : ''}"><span class="sn" style="width:26px;height:26px;font-size:13px">${setNo(e, j).sn}</span>${time && isCardio(e) ? `<div style="flex:1;display:grid;gap:6px">${hmsIn(`se_d_${i}_${j}`, st.actual || st.secs)}${kmMiIn(`se_k_${i}_${j}`, st.km)}${hrKcalIn(`se_c_${i}_${j}`, st, e.exId, `se_d_${i}_${j}`, `se_k_${i}_${j}`)}</div>` : time ? `<input type="number" inputmode="numeric" id="se_s_${i}_${j}" value="${st.secs ?? 30}" aria-label="Segundos"><span></span><span></span><span></span><span></span>` : `<input type="number" inputmode="numeric" id="se_r_${i}_${j}" value="${st.reps ?? ''}" aria-label="Repetições">${kgLbInputs('se_k_' + i + '_' + j, st.kg)}<select id="se_i_${i}_${j}" aria-label="RIR">${rirOptsU(st.rir == null ? (st.warm ? S.settings.defaultRir : '') : st.rir)}</select><button class="wtag ${st.warm ? 'on' : ''}" data-act="seWarm" data-i="${i}" data-j="${j}" aria-pressed="${!!st.warm}">${st.warm ? 'Aquec.' : 'Válida'}</button>`}<button class="ib" data-act="seDelSet" data-i="${i}" data-j="${j}" aria-label="Remover série">${ic('x')}</button></div>`).join('')}
+    <button class="addset" data-act="seAddSet" data-i="${i}">${time && isCardio(e) ? '+ Outro trecho' : '+ Série'}</button></div>`; }).join('')}
   <button class="btn block" style="margin-top:14px" data-act="seAddEx">${ic('plus')} Adicionar exercício</button>
   <div style="display:flex;flex-direction:column;gap:10px;margin-top:18px"><button class="btn primary block" data-act="seSave">Salvar</button>${d._new ? '' : '<button class="btn block danger" data-act="seDelAsk">Excluir treino</button>'}</div>`;
 }
@@ -2119,13 +2150,17 @@ async function natShare(name, text) {
 /* ---------- execução do treino ---------- */
 const curEx = () => run.exs[run.exIdx];
 /* rótulo da série: aquecimentos A1, A2…; séries válidas contam de 1 a N; drop e rest-pause D1/R1 */
+const SIDE = {E: 'lado esquerdo', D: 'lado direito'};
 function setNo(e, j) {
   const st = e.sets[j]; if (!st) return {sn: String(j + 1), txt: 'série ' + (j + 1)};
-  const upto = f => e.sets.slice(0, j + 1).filter(f).length, all = f => e.sets.filter(f).length;
-  if (st.warm) return {sn: 'A' + upto(x => x.warm), txt: `aquecimento ${upto(x => x.warm)} de ${all(x => x.warm)}`};
-  if (st.kind) return {sn: (st.kind === 'drop' ? 'D' : 'R') + (st.kn || 1), txt: (st.kind === 'drop' ? 'drop ' : 'rest-pause ') + (st.kn || 1)};
-  const f = x => !x.warm && !x.kind; return {sn: String(upto(f)), txt: `série ${upto(f)} de ${all(f)}`};
+  const sd = st.side || '', same = f => x => (x.side || '') === sd && f(x), pre = sd ? SIDE[sd] + ' · ' : '';
+  const upto = f => e.sets.slice(0, j + 1).filter(same(f)).length, all = f => e.sets.filter(same(f)).length;
+  if (st.warm) return {sn: 'A' + upto(x => x.warm), txt: `${pre}aquecimento ${upto(x => x.warm)} de ${all(x => x.warm)}`};
+  if (st.kind) return {sn: (st.kind === 'drop' ? 'D' : 'R') + (st.kn || 1), txt: pre + (st.kind === 'drop' ? 'drop ' : 'rest-pause ') + (st.kn || 1)};
+  const f = x => !x.warm && !x.kind; return {sn: sd + upto(f), txt: `${pre}série ${upto(f)} de ${all(f)}`};
 }
+/* unilateral: todas as séries de um lado e depois todas do outro; nos combinados a rodada passa pelos exercícios do grupo com o mesmo lado */
+const sides = (sets, uni) => uni ? sets.map(x => Object.assign({}, x, {side: 'E'})).concat(sets.map(x => Object.assign({}, x, {side: 'D'}))) : sets;
 /* durante o descanso depois do último set, a tela continua no exercício que acabou até o descanso terminar */
 const restSplit = () => !!(run && run.phase === 'rest' && run.prevPtr && run.prevPtr[0] !== run.exIdx && run.exs[run.prevPtr[0]]);
 /* no descanso entre exercícios a tela fica no que terminou; "Ver o próximo" mostra o seguinte sem mexer no cronômetro */
@@ -2158,6 +2193,7 @@ function buildRunEx(cfg) {
     cfg.plan = cfg.plan.map(p => { if (!useLast) return p; const q = Object.assign({}, p); if (!p.warm && !p.kind) { const l = last[Math.min(vi, last.length - 1)]; q.kg = l.kg; vi++; } else if (p.kg > 0) q.kg = rndK(p.kg * ratio, lib); return q; });
     cfg.plan.forEach(p => { const rr = cfg.rir && cfg.rir.length ? cfg.rir[Math.min(wi, cfg.rir.length - 1)] : S.settings.defaultRir; sets.push({reps: p.reps, kg: p.kg, rir: p.warm ? null : p.kind ? 0 : rr, warm: !!p.warm, kind: p.kind || '', kn: p.kn || 0, rest: p.rest ?? null, tempo: '', done: false}); if (!p.warm && !p.kind) wi++; });
   }
+  if (cfg.uni && lib.type !== 'time') { const b = sets.splice(0); sets.push(...sides(b, true)); }
   return {cfg, link: !!cfg.link, exId: cfg.exId, name: lib.name, variant: cfg.variant, grip: cfg.grip || '', type: lib.type, primary: lib.primary, secondary: lib.secondary, sets, note: '', rest: cfg.rest ?? S.settings.defaultRest, prep: (cfg.prep != null && cfg.prep !== '') ? +cfg.prep : null, tempo: lib.type === 'time' ? '' : (cfg.tempo || cfg.tempoW || (run && run.workoutId && findW(run.workoutId) ? tempoOf({}, findW(run.workoutId).w) : S.settings.tempo))};
 }
 let audio = null;
@@ -2472,8 +2508,15 @@ const PAT = {
 Object.assign(PAT, DOC_PAT, {'crucifixo-inverso': 'reardelt'});
 const PAT_NAME = {'rotator': 'manguito rotador', 'push-h': 'empurrar para a frente (supinos)', 'fly': 'crucifixos', 'pull-v': 'puxar de cima', 'pullover': 'puxada com braço estendido', 'pull-h': 'remadas', 'shrug': 'encolhimentos', 'upright': 'remada alta', 'push-v': 'desenvolvimentos', 'lateral': 'elevação lateral', 'front': 'elevação frontal', 'reardelt': 'deltoide posterior', 'curl': 'roscas', 'tri': 'extensões de tríceps', 'forearm': 'antebraço', 'crunch': 'abdominais', 'plank': 'pranchas', 'rotation': 'rotação de tronco', 'backext': 'extensão lombar', 'hinge': 'dobradiça de quadril (stiff)', 'glute': 'glúteo', 'abduct': 'abdução', 'squat': 'agachamentos e leg press', 'legext': 'extensão de joelho', 'legcurl': 'flexão de joelho', 'adduct': 'adução', 'calf': 'panturrilha', 'cardio': 'cardio'};
 let simAll = false, simId = null;
-let simG = '', simV = '';
-function similarPick(exId, cb, g, v) { pickCb = cb; pickMany = null; pickChosen.clear(); simId = exId; simG = g || ''; simV = v || ''; simAll = false; renderSimilar(); }
+let simG = '', simV = '', simSug = '';
+function similarPick(exId, cb, g, v) { pickCb = cb; pickMany = null; pickChosen.clear(); simId = exId; simG = g || ''; simV = v || ''; simAll = false; simQ = ''; renderSimilar(); }
+let simQ = '';
+/* busca na substituição: igual à de adicionar exercício, em todos os grupos */
+function simList(q) {
+  const toks = normTxt(q.trim()).split(/\s+/).filter(Boolean); if (!toks.length) return null;
+  const base = allEx().filter(e => e.id !== simId && toks.every(t => (' ' + exHay(e).replace(/[^a-z0-9]+/g, ' ')).includes(' ' + t))), l = simAll ? base : base.filter(availEx), hidden = base.length - l.length;
+  return (l.map(pickItem).join('') || '<div class="empty">Nenhum exercício encontrado.</div>') + (hidden ? `<div class="muted small" style="padding:10px 4px">${hidden} exercício(s) oculto(s): equipamento não marcado em Minha academia.</div>` : '');
+}
 function renderSimilar() {
   const me = getEx(simId), pat = PAT[simId], ok = e => simAll || availEx(e);
   let trl = TROCAS[simId + '|' + simV + '|' + simG];
@@ -2483,13 +2526,16 @@ function renderSimilar() {
   const same = allEx().filter(e => e.id !== simId && !tro.includes(e) && pat && PAT[e.id] === pat);
   const near = allEx().filter(e => e.id !== simId && !tro.includes(e) && !same.includes(e) && e.primary.some(m => me.primary.includes(m)) && (e.type === me.type));
   const t0 = trl.filter(o => ok(getEx(o.id))), a = same.filter(ok), b = near.filter(ok), hidden = trl.length + same.length + near.length - t0.length - a.length - b.length;
-  modal(`<h2>Substituir</h2><p class="muted" style="margin:0">${esc(me.name)} · ${esc(me.primary.join(', '))}</p>
-  <div class="pick">${(GRIPS[simId] || ACC[simId]) ? `<div class="lbl" style="margin:8px 0 4px">Mesmo exercício, outra variação</div>${pickItem(me)}` : ''}
+  const sug = `${(GRIPS[simId] || ACC[simId]) ? `<div class="lbl" style="margin:8px 0 4px">Mesmo exercício, outra variação</div>${pickItem(me)}` : ''}
   ${t0.length ? `<div class="lbl" style="margin:12px 0 4px;color:var(--accent)">Troca emergencial do seu treinador</div>${t0.map(o => `<button class="mi" data-act="pickIt" data-id="${o.id}" data-v="${esc(o.v)}" data-g="${esc(o.g)}">${tileOf(getEx(o.id))}<span>${esc(exLabel({name: getEx(o.id).name, variant: o.v, grip: o.g}))}</span></button>`).join('')}` : ''}
   ${a.length ? `<div class="lbl" style="margin:12px 0 4px">Mesmo movimento${pat ? ' · ' + PAT_NAME[pat] : ''}</div>${a.map(pickItem).join('')}` : ''}
   ${b.length ? `<div class="lbl" style="margin:12px 0 4px">Mesmo grupo muscular</div>${b.map(pickItem).join('')}` : ''}
   ${!t0.length && !a.length && !b.length ? '<div class="empty">Nenhuma substituição com o equipamento marcado.</div>' : ''}
-  ${hidden ? `<div class="muted small" style="padding:10px 4px">${hidden} opção(ões) oculta(s): equipamento não marcado em Minha academia.</div>` : ''}</div>
+  ${hidden ? `<div class="muted small" style="padding:10px 4px">${hidden} opção(ões) oculta(s): equipamento não marcado em Minha academia.</div>` : ''}`;
+  simSug = sug;
+  modal(`<h2>Substituir</h2><p class="muted" style="margin:0">${esc(me.name)} · ${esc(me.primary.join(', '))}</p>
+  <input type="text" id="sq" placeholder="Buscar outro exercício (ex.: polia, halter)" aria-label="Buscar exercício para substituir" autocomplete="off" value="${esc(simQ)}">
+  <div class="pick" id="slist">${simList(simQ) ?? sug}</div>
   <div class="set" style="padding:0;border:0;align-items:center"><div class="t"><b>Mostrar outros equipamentos</b></div><button class="sw2 ${simAll ? 'on' : ''}" role="switch" aria-checked="${simAll}" aria-label="Mostrar outros equipamentos" data-act="simAllTog"></button></div>`);
 }
 function tagsHtml(q) {
@@ -2663,7 +2709,8 @@ const H = {
   addEx: () => pickEx(id => { editFor = null; exEditor(newCfg(id, findW(view.id).r, findW(view.id).w), true); }, undefined, items => { const f = findW(view.id); items.forEach(it => { pickPreset = {variant: it.v, grip: it.g}; f.w.exercises.push(newCfg(it.id, f.r, f.w)); }); persist(); render(); toast(items.length + ' exercícios adicionados'); }),
   pickDone: () => { rememberQuery(); const items = [...pickChosen.values()], cb = pickCb, many = pickMany; closeModal(); pickCb = null; pickMany = null; pickChosen.clear(); if (items.length === 1) { pickPreset = {variant: items[0].v, grip: items[0].g}; cb && cb(items[0].id); } else if (items.length) many(items); },
   linkEx: d => { closeModal(); const w = findW(view.id).w, e = w.exercises[+d.i]; e.link = !e.link; persist(); render(); toast(e.link ? 'Combinado: fazem a mesma série, sem descanso entre eles' : 'Separado'); },
-  exMenu: d => menu('Exercício', [{t: 'Estatísticas e histórico', act: 'openEx', d: {id: findW(view.id).w.exercises[+d.i].exId, vk: vkey(findW(view.id).w.exercises[+d.i])}}, {t: 'Substituir', act: 'subW', d: {i: d.i}}, {t: 'Editar', act: 'editEx', d: {i: d.i}}, ...(+d.i < findW(view.id).w.exercises.length - 1 ? [{t: findW(view.id).w.exercises[+d.i].link ? 'Separar do próximo exercício' : 'Combinar com o próximo (mesma série, sem descanso)', act: 'linkEx', d: {i: d.i}}] : []), {t: 'Mover para cima', act: 'moveEx', d: {i: d.i, dir: -1}}, {t: 'Mover para baixo', act: 'moveEx', d: {i: d.i, dir: 1}}, {t: 'Remover', act: 'rmEx', d: {i: d.i}, danger: 1}]),
+  exMenu: d => menu('Exercício', [{t: 'Estatísticas e histórico', act: 'openEx', d: {id: findW(view.id).w.exercises[+d.i].exId, vk: vkey(findW(view.id).w.exercises[+d.i])}}, {t: 'Substituir', act: 'subW', d: {i: d.i}}, {t: 'Editar', act: 'editEx', d: {i: d.i}}, ...(+d.i < findW(view.id).w.exercises.length - 1 ? [{t: findW(view.id).w.exercises[+d.i].link ? 'Separar do próximo exercício' : 'Combinar com o próximo (mesma série, sem descanso)', act: 'linkEx', d: {i: d.i}}] : []), ...(getEx(findW(view.id).w.exercises[+d.i].exId).type === 'time' ? [] : [{t: findW(view.id).w.exercises[+d.i].uni ? 'Fazer os dois lados juntos' : 'Um lado de cada vez (todas as séries de uma perna, depois da outra)', act: 'uniEx', d: {i: d.i}}]), {t: 'Mover para cima', act: 'moveEx', d: {i: d.i, dir: -1}}, {t: 'Mover para baixo', act: 'moveEx', d: {i: d.i, dir: 1}}, {t: 'Remover', act: 'rmEx', d: {i: d.i}, danger: 1}]),
+  uniEx: d => { closeModal(); const a = findW(view.id).w.exercises, i = +d.i; let s0 = i, s1 = i; while (s0 > 0 && a[s0 - 1].link) s0--; while (s1 < a.length - 1 && a[s1].link) s1++; const on = !a[i].uni; for (let k = s0; k <= s1; k++) if (getEx(a[k].exId).type !== 'time') { if (on) a[k].uni = true; else delete a[k].uni; } persist(); render(); toast(on ? (s1 > s0 ? 'Combinados: todas as rodadas de um lado, depois as do outro' : 'Todas as séries de um lado, depois as do outro') : 'Os dois lados juntos'); },
   editEx: d => { editFor = null; exEditor(JSON.parse(JSON.stringify(findW(view.id).w.exercises[+d.i])), false, +d.i); },
   moveEx: d => { const a = findW(view.id).w.exercises, i = +d.i, j = i + +d.dir; if (j < 0 || j >= a.length) return closeModal(); [a[i], a[j]] = [a[j], a[i]]; persist(); closeModal(); render(); },
   rmEx: d => { findW(view.id).w.exercises.splice(+d.i, 1); persist(); closeModal(); render(); },
@@ -2720,11 +2767,11 @@ const H = {
   saveRun: () => saveRun(),
   editSet: d => {
     const e = run.exs[+d.i], s = e.sets[+d.j];
-    modal(`<h2>${esc(cap1(setNo(e, +d.j).txt))}</h2>${isCardio(e) ? `<div class="field"><span class="lbl">Duração</span>${hmsIn('s_dur', s.done && s.actual ? s.actual : s.secs)}</div><div class="field"><label class="lbl" for="s_km">Distância</label>${kmMiIn('s_km', s.km)}</div>${hrKcalIn('s_c', s)}` : e.type === 'time' ? `<div class="field"><span class="lbl">Segundos</span><div class="step"><button data-act="stp" data-t="s_secs" data-by="-5" aria-label="Menos 5">−</button><input type="number" inputmode="numeric" id="s_secs" value="${s.secs}" aria-label="Segundos"><button data-act="stp" data-t="s_secs" data-by="5" aria-label="Mais 5">+</button></div></div>` : `<div class="field"><span class="lbl">Repetições</span><div class="step"><button data-act="stp" data-t="s_reps" data-by="-1" aria-label="Menos 1">−</button><input type="number" inputmode="numeric" id="s_reps" value="${s.reps}" aria-label="Repetições"><button data-act="stp" data-t="s_reps" data-by="1" aria-label="Mais 1">+</button></div></div><div class="field"><span class="lbl">Carga (kg e lb)</span><div class="step"><button data-act="stp" data-t="s_kg" data-by="-2.5" aria-label="Menos 2,5 kg">−</button>${cvg('s_kg', null, s.kg, ['kg', 'lb'], {kg: 's_kg', lb: 's_lb'})}<button data-act="stp" data-t="s_kg" data-by="2.5" aria-label="Mais 2,5 kg">+</button></div></div><div class="field"><label class="lbl" for="s_rir">RIR (repetições na reserva)</label><select id="s_rir">${rirOptsU(s.rirU ? '' : (s.rir ?? S.settings.defaultRir))}</select></div><div class="field"><span class="lbl">Cadência desta série</span>${tRow('s_t', s.tempo || e.tempo || S.settings.tempo, '')}<span class="muted small">Excêntrica · pausa · concêntrica · pausa, em segundos.</span></div><label class="chkrow"><input type="checkbox" id="s_warm" ${s.warm ? 'checked' : ''}> Série de aquecimento (não conta no volume)</label>
+    modal(`<h2>${esc(cap1(setNo(e, +d.j).txt))}</h2>${isCardio(e) ? `<div class="field"><span class="lbl">Duração</span>${hmsIn('s_dur', s.done && s.actual ? s.actual : s.secs)}</div><div class="field"><label class="lbl" for="s_km">Distância</label>${kmMiIn('s_km', s.km)}</div>${hrKcalIn('s_c', s, e.exId, 's_dur', 's_km')}` : e.type === 'time' ? `<div class="field"><span class="lbl">Segundos</span><div class="step"><button data-act="stp" data-t="s_secs" data-by="-5" aria-label="Menos 5">−</button><input type="number" inputmode="numeric" id="s_secs" value="${s.secs}" aria-label="Segundos"><button data-act="stp" data-t="s_secs" data-by="5" aria-label="Mais 5">+</button></div></div>` : `<div class="field"><span class="lbl">Repetições</span><div class="step"><button data-act="stp" data-t="s_reps" data-by="-1" aria-label="Menos 1">−</button><input type="number" inputmode="numeric" id="s_reps" value="${s.reps}" aria-label="Repetições"><button data-act="stp" data-t="s_reps" data-by="1" aria-label="Mais 1">+</button></div></div><div class="field"><span class="lbl">Carga (kg e lb)</span><div class="step"><button data-act="stp" data-t="s_kg" data-by="-2.5" aria-label="Menos 2,5 kg">−</button>${cvg('s_kg', null, s.kg, ['kg', 'lb'], {kg: 's_kg', lb: 's_lb'})}<button data-act="stp" data-t="s_kg" data-by="2.5" aria-label="Mais 2,5 kg">+</button></div></div><div class="field"><label class="lbl" for="s_rir">RIR (repetições na reserva)</label><select id="s_rir">${rirOptsU(s.rirU ? '' : (s.rir ?? S.settings.defaultRir))}</select></div><div class="field"><span class="lbl">Cadência desta série</span>${tRow('s_t', s.tempo || e.tempo || S.settings.tempo, '')}<span class="muted small">Excêntrica · pausa · concêntrica · pausa, em segundos.</span></div><label class="chkrow"><input type="checkbox" id="s_warm" ${s.warm ? 'checked' : ''}> Série de aquecimento (não conta no volume)</label>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" style="flex:1" data-act="saveSet" data-i="${d.i}" data-j="${d.j}" data-ap="kg">Aplicar carga às séries restantes</button><button class="btn sm" style="flex:1" data-act="saveSet" data-i="${d.i}" data-j="${d.j}" data-ap="reps">Aplicar reps às séries restantes</button></div>`}<div class="field"><label class="lbl" for="s_rest">Descanso depois desta série (s)</label><input type="number" inputmode="numeric" id="s_rest" value="${s.rest ?? ''}" placeholder="${e.rest ?? S.settings.defaultRest} (do exercício)"></div><label class="chkrow"><input type="checkbox" id="s_done" ${s.done ? 'checked' : ''}> Série feita${s.done ? ' (desmarque para refazer)' : ''}</label><button class="btn primary block" data-act="saveSet" data-i="${d.i}" data-j="${d.j}">Salvar</button><button class="btn block danger" data-act="delSet" data-i="${d.i}" data-j="${d.j}">Remover série</button>`);
   },
   stp: d => { const el = document.getElementById(d.t); el.value = Math.max(0, Math.round((num(el.value) + +d.by) * 10) / 10); el.dispatchEvent(new Event('input', {bubbles: true})); },
-  saveSet: d => { const e = run.exs[+d.i], s = e.sets[+d.j]; { const rv = val('s_rest'); s.rest = rv === '' ? null : Math.max(0, Math.round(num(rv))); } setDoneFrom(+d.i, +d.j); if (isCardio(e)) { const du = readHms('s_dur'); if (s.done) s.actual = du; else s.secs = Math.max(1, du); s.km = readKm('s_km'); readHrKcal('s_c', s); } else if (e.type === 'time') s.secs = Math.max(1, Math.round(num(val('s_secs')))); else { s.reps = Math.max(0, Math.round(num(val('s_reps')))); s.kg = Math.max(0, cvRead('s_kg')); { const rv = val('s_rir'); if (rv === '') s.rirU = true; else { s.rir = +rv; s.rirU = false; } } { const w0 = !!s.warm; s.warm = !!(document.getElementById('s_warm') || {}).checked; warmKeep(+d.i, +d.j, w0); } { const t = tRowRead('s_t'); s.tempo = t === e.tempo ? '' : t; } if (d.ap) { const n = applyRest(e, +d.j, d.ap); toast(n ? `${d.ap === 'kg' ? 'Carga' : 'Repetições'} aplicada${d.ap === 'kg' ? '' : 's'} a mais ${n} série${n > 1 ? 's' : ''}` : 'Não há séries restantes'); } } persistRun(); closeModal(); render(); },
+  saveSet: d => { const e = run.exs[+d.i], s = e.sets[+d.j]; { const rv = val('s_rest'); s.rest = rv === '' ? null : Math.max(0, Math.round(num(rv))); } setDoneFrom(+d.i, +d.j); if (isCardio(e)) { const du = readHms('s_dur'); if (s.done) s.actual = du; else s.secs = Math.max(1, du); s.km = readKm('s_km'); readHrKcal('s_c', s, e.exId, du); } else if (e.type === 'time') s.secs = Math.max(1, Math.round(num(val('s_secs')))); else { s.reps = Math.max(0, Math.round(num(val('s_reps')))); s.kg = Math.max(0, cvRead('s_kg')); { const rv = val('s_rir'); if (rv === '') s.rirU = true; else { s.rir = +rv; s.rirU = false; } } { const w0 = !!s.warm; s.warm = !!(document.getElementById('s_warm') || {}).checked; warmKeep(+d.i, +d.j, w0); } { const t = tRowRead('s_t'); s.tempo = t === e.tempo ? '' : t; } if (d.ap) { const n = applyRest(e, +d.j, d.ap); toast(n ? `${d.ap === 'kg' ? 'Carga' : 'Repetições'} aplicada${d.ap === 'kg' ? '' : 's'} a mais ${n} série${n > 1 ? 's' : ''}` : 'Não há séries restantes'); } } persistRun(); closeModal(); render(); },
   runTempo: () => {
     const ex = viewEx();
     modal(`<h2>Cadência</h2><p class="muted small" style="margin:0">${esc(exLabel(ex))}</p>${tempoBlock('rt', ex.tempo || S.settings.tempo, '', '', true)}
@@ -2894,15 +2941,20 @@ const H = {
   exUnit: d => { S.settings.chartLb = d.u === 'lb'; persist(); render(); },
   exMenu2: d => menu('Exercício', [{t: 'Adicionar registro', act: 'addRec', d: {id: d.id}}]),
   saveExNote: () => { S.exNotes[view.id] = val('exnote').trim(); persist(); toast('Instruções salvas'); },
-  addRec: d => { closeModal(); const l = getEx(d.id); openDraft({id: uid(), date: new Date().toISOString(), name: l.name, routine: '', durMs: 10 * 60000, manual: true, exercises: [{exId: l.id, name: l.name, variant: '', note: '', sets: [newSet(l), newSet(l), newSet(l)]}]}, true); },
+  addRec: d => { closeModal(); const l = getEx(d.id); openDraft({id: uid(), date: new Date().toISOString(), name: l.name, routine: '', durMs: 10 * 60000, manual: true, exercises: [{exId: l.id, name: l.name, variant: '', note: '', sets: newSets(l)}]}, true); },
   editS: d => { closeModal(); const s = sessions.find(x => x.id === d.id); if (s) openDraft(s, false); },
-  addSess: () => menu('Adicionar treino', [{t: 'Em branco', act: 'addSessBlank'}].concat(S.routines.flatMap(r => r.workouts.map(w => ({t: 'A partir do ' + w.name + ' (' + r.name + ')', act: 'addSessW', d: {id: w.id}}))))),
+  addSess: () => {
+    const wn = new Set(S.routines.flatMap(r => r.workouts.map(w => normTxt(w.name)))), seen = new Set(), past = [];
+    sessions.forEach(x => { const k = normTxt(x.name); if (!x.exercises || !x.exercises.length || wn.has(k) || seen.has(k)) return; seen.add(k); if (past.length < 8) past.push(x); });
+    menu('Adicionar treino', [{t: 'Em branco', act: 'addSessBlank'}].concat(S.routines.flatMap(r => r.workouts.map(w => ({t: 'A partir do ' + w.name + ' (' + r.name + ')', act: 'addSessW', d: {id: w.id}}))), past.map(x => ({t: 'Repetir ' + x.name + ' (feito em ' + new Date(x.date).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'}) + ')', act: 'addSessP', d: {id: x.id}}))));
+  },
+  addSessP: d => { closeModal(); const o = sessions.find(x => x.id === d.id); if (!o) return; const c = JSON.parse(JSON.stringify(o)); c.exercises.forEach(e => e.sets.forEach(x => { if (isCardio(e)) { x.kcal = null; x.kcalAuto = true; x.hr = null; } })); openDraft({id: uid(), date: selDate(), name: c.name, routine: c.routine || '', durMs: c.durMs || 45 * 60000, manual: true, exercises: c.exercises}, true); },
   addSessBlank: () => { closeModal(); openDraft({id: uid(), date: selDate(), name: 'Treino', routine: '', durMs: 45 * 60000, manual: true, exercises: []}, true); },
   addSessW: d => { closeModal(); const f = findW(d.id); const s = sessFromWorkout(f.w, selDate()); s.routine = f.r.name; openDraft(s, true); },
-  seAddSet: d => { syncDraft(); const e = draft.exercises[+d.i], l = e.sets[e.sets.length - 1]; e.sets.push(l ? Object.assign({}, l) : newSet(getEx(e.exId))); render(); },
+  seAddSet: d => { syncDraft(); const e = draft.exercises[+d.i], l = e.sets[e.sets.length - 1]; e.sets.push(l ? Object.assign({}, l, isCardio(e) ? {kcal: null, kcalAuto: true, hr: null} : {}) : newSet(getEx(e.exId))); render(); },
   seDelSet: d => { syncDraft(); draft.exercises[+d.i].sets.splice(+d.j, 1); render(); },
   seDelEx: d => { syncDraft(); draft.exercises.splice(+d.i, 1); render(); },
-  seAddEx: () => { syncDraft(); pickEx(id => { const l = getEx(id); draft.exercises.push({exId: id, name: l.name, variant: pickPreset.variant || '', grip: pickPreset.grip || '', note: '', sets: [newSet(l), newSet(l), newSet(l)]}); render(); }, null, items => { items.forEach(it => { const l = getEx(it.id); draft.exercises.push({exId: it.id, name: l.name, variant: it.v, grip: it.g, note: '', sets: [newSet(l), newSet(l), newSet(l)]}); }); render(); }); },
+  seAddEx: () => { syncDraft(); pickEx(id => { const l = getEx(id); draft.exercises.push({exId: id, name: l.name, variant: pickPreset.variant || '', grip: pickPreset.grip || '', note: '', sets: newSets(l)}); render(); }, null, items => { items.forEach(it => { const l = getEx(it.id); draft.exercises.push({exId: it.id, name: l.name, variant: it.v, grip: it.g, note: '', sets: newSets(l)}); }); render(); }); },
   seSave: () => saveDraft(),
   seCancel: () => { draft = null; back(); },
   seDelAsk: () => confirmBox('Excluir este treino?', 'Não dá para desfazer.', 'seDel', {}, 'Excluir'),
@@ -3060,8 +3112,11 @@ document.addEventListener('change', e => { const el = e.target, f = el.dataset &
 document.addEventListener('change', e => { const el = e.target; if (el && el.dataset && el.dataset.cu) { const g = el.closest('.cvg'); if (g) { conv(el, g); if (el.dataset.cu === 'm' && g.dataset.canon) el.value = fmtU(+g.dataset.canon, 'm'); } } });
 document.addEventListener('input', e => {
   const el = e.target;
+  if (el.dataset && el.dataset.ce != null) { el.dataset.auto = el.value.trim() === '' ? '1' : '0'; const n = document.getElementById(el.dataset.c + '_kn'); if (n) n.textContent = el.dataset.auto === '1' ? 'Em branco: o app usa o cálculo dele.' : kcNote(true); }
+  else if (el.id && document.querySelector('input[data-ce]')) setTimeout(kcRefresh, 0);
   if (el.dataset && el.dataset.dk) { const pr = document.getElementById(el.dataset.dk === 'km' ? el.id + '_mi' : el.id.replace(/_mi$/, '')), v = el.value.trim() === '' ? null : num(el.value); if (pr) pr.value = v == null ? '' : fmtN(Math.round((el.dataset.dk === 'km' ? v / MI : v * MI) * 100) / 100); }
   if (el.dataset && el.dataset.lk) { const pr = document.getElementById(el.dataset.pair), v = el.value.trim() === '' ? null : num(el.value); const kgEl = el.dataset.lk === 'kg' ? el : pr; if (kgEl) kgEl.dataset.canon = v == null ? '' : String(el.dataset.lk === 'kg' ? v : v / LB); if (pr) pr.value = v == null ? '' : (el.dataset.lk === 'kg' ? f1(v * LB) : fmtN(r1(v / LB))); return; }
+  if (el.id === 'sq') { simQ = el.value; const l = $('#slist'); if (l) l.innerHTML = simList(el.value) ?? simSug; return; }
   if (el.id === 'pq') { const l = $('#plist'); if (l) l.innerHTML = pickList(el.value); const tg = $('#ptags'); if (tg) tg.innerHTML = tagsHtml(el.value); return; }
   if (!el.dataset || !el.dataset.cu) return;
   const g = el.closest('.cvg'); if (g) conv(el, g);
@@ -3159,7 +3214,7 @@ if (!inClaude() && navigator.storage && navigator.storage.persist) navigator.sto
 </script>
 
 <script>
-if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202611112027').catch(() => {});
+if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202611130400').catch(() => {});
 </script>
 </body>
 </html>
