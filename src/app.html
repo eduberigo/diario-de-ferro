@@ -1942,7 +1942,10 @@ function mediaUpdate() {
 }
 
 /* ---------- app Android (Capacitor): notificação do treino, alarme e tela ligada ---------- */
-function natListen() { if (natHeard) return; const fn = natP('FerroNotif'); if (!fn) return; natHeard = true; try { fn.addListener('action', a => natAct(a && a.action)); } catch (e) { natHeard = false; } }
+function natListen() { if (natHeard) return; const fn = natP('FerroNotif'); if (!fn) return; natHeard = true; try { fn.addListener('action', a => natAct(a && a.action)); fn.addListener('hr', a => wearBpm(a && a.bpm)); } catch (e) { natHeard = false; } }
+/* relógio: batimentos a cada ~5 s durante o treino; guardados no treino para a FC média (total e de cada série de cardio) */
+function wearBpm(b) { b = +b; if (!run || run.phase === 'done' || !(b >= 30 && b <= 230)) return; (run.hrLog = run.hrLog || []).push([Date.now(), b]); if (run.hrLog.length > 3000) run.hrLog.splice(0, 500); run.hrLast = b; run.hrAt = Date.now(); clearTimeout(wearBpm.t); wearBpm.t = setTimeout(persistRun, 3000); const el = document.getElementById('hrlive'); if (el) el.textContent = '♥ ' + b; else if (view.n === 'run') render(); }
+const hrAvgIn = (a, b) => { const l = ((run && run.hrLog) || []).filter(x => x[0] >= a && x[0] <= b); return l.length >= 2 ? Math.round(l.reduce((t, x) => t + x[1], 0) / l.length) : null; };
 function natInit() {
   const ln = natP('LocalNotifications'); if (!ln) return Promise.resolve(false);
   natListen();
@@ -1965,6 +1968,7 @@ function natInit() {
 }
 function natAct(raw) {
   if (!run || run.phase === 'done') return;
+  if (String(raw || '').startsWith('adj|')) { const [, r, k, ei, si] = String(raw).split('|'), e = run.exs[+ei], st = e && e.sets[+si]; remindStop(); if (st && e.type !== 'time') { st.reps = Math.max(0, Math.round(+r) || 0); st.kg = Math.max(0, Math.round((+k || 0) * 10) / 10); persistRun(); toast('Série ajustada no relógio'); } natLast = ''; clearTimeout(natT); natPush(); if (view.n === 'run') render(); return; }
   const [id, stamp] = String(raw || '').split(':');
   if (id !== 'tick') remindStop();
   if (id === 'tick') { runDue(1); natLast = ''; clearTimeout(natT); natPush(); if (view.n === 'run') render(); return; }
@@ -2036,6 +2040,7 @@ function natPayload() {
   if (v.count) { o.chrono = 'down'; if (pz) o.shownMs = Math.max(0, v.rem); else o.endAt = phaseEndAt() || Math.round((Date.now() + v.rem - overMs()) / 1000) * 1000; }
   else { o.chrono = 'up'; if (pz) o.shownMs = v.el; else o.startAt = run.phaseStart; }
   o.paused = pz;
+  o.w = {ex: run.exIdx, set: run.setIdx, reps: +st.reps || 0, kg: +st.kg || 0, time: ex.type === 'time'};
   return o;
 }
 function natSync() {
@@ -2199,7 +2204,7 @@ function startRun(w, rname) {
   const tw = tempoOf({}, w), exs = w.exercises.map(c => buildRunEx(Object.assign({}, c, {tempoW: tw})));
   const warm = S.settings.warmup && exs[0] && exs[0].type !== 'time';
   run = {id: uid(), workoutId: w.id, name: w.name, routine: rname, startedAt: Date.now(), exs, exIdx: 0, setIdx: 0, warm: !!warm, phase: warm ? 'warmup' : (prepOf(exs[0]) > 0 ? 'prepare' : 'exec'), phaseStart: Date.now(), pausedAt: null, tot: {warmup: 0, prepare: 0, exec: 0, rest: 0}, restTotal: 0, fired: 0};
-  persistRun(); beep(0); mediaStart(); natCfg(); natInit().then(natSync);
+  persistRun(); beep(0); mediaStart(); natCfg(); natInit().then(natSync); natCall('wearHr', {reset: true}); setTimeout(() => natCall('wearOpen'), 800);
   try { navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {}
   stack = [{n: 'home'}]; view = {n: 'run'}; render(); window.scrollTo(0, 0);
 }
@@ -2287,6 +2292,7 @@ function runNext() {
   else if (ph === 'prepare') { const ov = overMs(); setPhase('exec'); if (ov > 0) { run.tot.prepare = Math.max(0, run.tot.prepare - ov); run.tot.rest += ov; } }
   else if (ph === 'exec') {
     const s = curEx().sets[run.setIdx]; s.done = true; s.actual = Math.round(elapsed() / 1000);
+    if (isCardio(curEx()) && s.hr == null) { const h = hrAvgIn(run.phaseStart, Date.now()); if (h) { s.hr = h; s.hrWatch = true; if (s.kcal == null || s.kcalAuto) { const e = cardioKcal(curEx().exId, s.actual, s.km, h); if (e) { s.kcal = e.kcal; s.kcalAuto = true; } } } }
     const t = nextTarget();
     if (!t) return finishRun();
     const ns = run.exs[t[0]].sets[t[1]];
@@ -2370,7 +2376,7 @@ function runView() {
     return `<div class="exrow" data-drag="r" data-i="${i}">${run.reorder ? '' : ''}${left}${right}</div>`;
   }).join('');
   return `<div class="runhead rh2"><button class="ib" data-act="closeRun" aria-label="Encerrar treino">${ic('x')}</button><div class="rht"><span>${esc([run.routine, run.name].filter(Boolean).join(' · '))}</span><b>${esc(exLabel(ex))}</b></div><button class="pillbtn" data-act="runStats">Estatísticas</button></div>
-  <div class="lbl">Exercício ${vi + 1}/${run.exs.length}${restSplit() && run.peek ? ' · próximo, depois do descanso' : ''}${(() => { const [a, b] = grpOf(vi); return a !== b ? ` · combinado ${vi - a + 1}/${b - a + 1}` : ''; })()}</div>
+  <div class="lbl">${run.hrAt && Date.now() - run.hrAt < 20000 ? `<span id="hrlive" style="float:right;color:#e5484d">♥ ${run.hrLast}</span>` : ''}Exercício ${vi + 1}/${run.exs.length}${restSplit() && run.peek ? ' · próximo, depois do descanso' : ''}${(() => { const [a, b] = grpOf(vi); return a !== b ? ` · combinado ${vi - a + 1}/${b - a + 1}` : ''; })()}</div>
   <div class="exhead">${tileOf(getEx(ex.exId)).replace('tile sm', 'tile')}<div class="t" data-act="runVar" data-i="${vi}" role="button" tabindex="0" aria-label="Escolher variação de ${esc(exLabel(ex))}" style="cursor:pointer"><b style="text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:4px">${esc(exLabel(ex))}</b><span class="muted">${esc(ex.primary.concat(ex.secondary).join(', '))}</span>${techLab(ex) ? `<span class="techtag">${esc(techLab(ex))}</span>` : ''}</div></div>${ex.type !== 'time' ? `<button class="tempobar" data-act="runTempo">Cadência <b class="num">${ex.tempo || S.settings.tempo}</b> · ${tSec(ex.tempo || S.settings.tempo)} s por repetição <span style="margin-left:auto;color:var(--accent)">alterar</span></button>` : ''}
   <div class="acts"><button class="btn sm" data-act="subEx" data-i="${vi}">${ic('swap')} Substituir</button><button class="btn sm" data-act="noteEx">${ic('note')} ${ex.note ? 'Nota ✓' : 'Nota'}</button>${ex.type === 'time' ? '' : `<button class="btn sm" data-act="runAdj" data-i="${vi}">Ajustar</button>`}</div>
   ${run.warm && vi === 0 ? `<div class="warm ${run.phase === 'warmup' ? 'on' : ''}"><b>${ic('dumb').replace('<svg', '<svg ' + small)} Aquecimento</b><span class="muted small">Repetições livres • Carga leve</span></div>` : ''}
@@ -2408,7 +2414,7 @@ function summaryView() {
   return `<div class="top"><h1>${allDone ? 'Treino concluído' : 'Treino encerrado'}</h1></div><p class="muted">${esc([run.routine, run.name].filter(Boolean).join(' · '))} · ${fmtDate(new Date(run.startedAt).toISOString())}</p><button class="btn block" data-act="resumeRun" style="margin-bottom:10px">${ic('back')} Voltar ao treino</button><p class="muted small" style="margin-top:0">Confira as séries antes de salvar: toque numa série para corrigir carga, reps ou RIR; em Válida/Aquec. para marcar o aquecimento.</p>
   ${statsBody(r)}
   <div class="sec"><h2>Exercícios</h2>${run.exs.map(e => { const d = e.sets.filter(x => x.done); const vol = d.reduce((a, x) => a + (x.reps || 0) * (x.kg || 0), 0); return `<div class="card" style="padding:10px 14px;margin-bottom:10px"><div style="display:flex;gap:10px;align-items:center">${tileOf(getEx(e.exId))}<b style="flex:1;min-width:0">${esc(exLabel(e))}</b><span class="muted small num">${d.length}/${e.sets.length} séries</span></div>${e.sets.map((x, j) => x.done ? `<div class="swrap sset hsw"><div class="sacts"><button class="sa3" data-act="delSet" data-i="${run.exs.indexOf(e)}" data-j="${j}">Excluir</button></div><div class="hset" data-swipe="1"><span class="sn" style="width:26px;height:26px;font-size:13px">${setNo(e, j).sn}</span><span style="flex:1;cursor:pointer" role="button" tabindex="0" data-act="editSet" data-i="${run.exs.indexOf(e)}" data-j="${j}" aria-label="Corrigir ${setNo(e, j).txt}">${x.reps != null ? `<b>${fmtN(x.kg)}</b> kg <span class="muted small">(${f1(x.kg * LB)} lb)</span> × <b>${fmtN(x.reps)}</b>${!x.warm ? ` <span class="muted small">· RIR ${x.rirU || x.rir == null ? '?' : x.rir}</span>` : ''}` : isCardio(e) ? `<b>${fmtHms(x.actual || x.secs)}</b>${x.km != null ? ` · <b>${kmMiTxt(x.km)}</b> <span class="muted small">${paceTxt(x.actual || x.secs, x.km)}</span>` : ''}${cardioExtra(x) ? ` <span class="muted small">· ${cardioExtra(x)}</span>` : ''}` : `<b>${x.secs}</b> s`}</span>${e.type === 'time' ? '' : `<button class="wtag ${x.warm ? 'on' : ''}" data-act="togWarm" data-i="${run.exs.indexOf(e)}" data-j="${j}" aria-pressed="${!!x.warm}">${x.warm ? 'Aquec.' : 'Válida'}</button>`}</div></div>` : '').join('')}<button class="addset" data-act="sumAddSet" data-i="${run.exs.indexOf(e)}">+ Série</button>${vol ? `<div class="muted small" style="padding-top:6px">Volume: ${kgLb(vol)}</div>` : ''}</div>`; }).join('')}</div>
-  <div class="sec"><h2>Frequência cardíaca (opcional)</h2><div class="card" style="padding:14px;display:flex;flex-direction:column;gap:8px"><label class="uf"><input type="text" inputmode="numeric" id="hr_avg" placeholder="Média do relógio" aria-label="Frequência cardíaca média"><span>bpm</span></label><span class="muted small">Se você digitar a média que o relógio mostrou, as calorias passam a ser calculadas pela frequência cardíaca (precisa da idade na aba Corpo).</span></div></div>
+  <div class="sec"><h2>Frequência cardíaca${run.hrLog && run.hrLog.length ? '' : ' (opcional)'}</h2><div class="card" style="padding:14px;display:flex;flex-direction:column;gap:8px">${(() => { const h = hrAvgIn(run.startedAt, Date.now() + 1); return `<label class="uf"><input type="text" inputmode="numeric" id="hr_avg" placeholder="Média do relógio" aria-label="Frequência cardíaca média" value="${h || ''}"><span>bpm</span></label><span class="muted small">${h ? `Medida pelo relógio durante o treino (${run.hrLog.length} leituras, máxima ${Math.max(...run.hrLog.map(x => x[1]))} bpm). Pode corrigir. ` : ''}Com a frequência cardíaca, as calorias passam a ser calculadas por ela (precisa da idade na aba Corpo).</span>`; })()}</div></div>
   <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px"><button class="btn primary block" data-act="saveRun">Salvar no histórico</button><button class="btn block danger" data-act="discardRun">Descartar</button></div>`;
 }
 function saveRun() {

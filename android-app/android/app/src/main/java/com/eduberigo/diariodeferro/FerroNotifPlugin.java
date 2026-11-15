@@ -216,10 +216,41 @@ public class FerroNotifPlugin extends Plugin {
             .setAutoCancel(true)
             .setTimeoutAfter(10000);
         if (vib) b.setVibrate(new long[] {0, 260, 140, 260});
+        if (FerroWear.active()) b.setLocalOnly(true);
         if (open != null) b.setContentIntent(PendingIntent.getActivity(ctx, 1, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
         try {
             NotificationManagerCompat.from(ctx).notify(ALERT_ID, b.build());
         } catch (SecurityException ignored) {}
+    }
+
+    /** Batimento novo vindo do relógio (a página mostra e guarda). */
+    void hrEvent(int bpm) {
+        JSObject d = new JSObject();
+        d.put("bpm", bpm);
+        notifyListeners("hr", d, false);
+    }
+
+    /** Relógio: abre o app no relógio (começo do treino). */
+    @PluginMethod
+    public void wearOpen(PluginCall call) {
+        FerroWear.open(getContext());
+        FerroWear.push(getContext(), last);
+        call.resolve();
+    }
+
+    /** Relógio: média e máximo dos batimentos recebidos; reset = zera (começo do treino). */
+    @PluginMethod
+    public void wearHr(PluginCall call) {
+        JSObject r = new JSObject();
+        try {
+            JSONObject o = FerroWear.hrStats(call.getBoolean("reset", false));
+            java.util.Iterator<String> it = o.keys();
+            while (it.hasNext()) {
+                String k = it.next();
+                r.put(k, o.get(k));
+            }
+        } catch (Exception ignored) {}
+        call.resolve(r);
     }
 
     void fire(String action) {
@@ -283,6 +314,7 @@ public class FerroNotifPlugin extends Plugin {
             } catch (Exception ignored) {}
             NotificationManagerCompat.from(ctx).notify(NOTIF_ID, n);
             FerroWorkoutService.start(ctx, n);
+            FerroWear.push(ctx, d);
             call.resolve();
         } catch (SecurityException e) {
             call.reject("Sem permissão para notificações");
@@ -312,6 +344,7 @@ public class FerroNotifPlugin extends Plugin {
             last = d;
             NotificationManagerCompat.from(ctx).notify(NOTIF_ID, n);
             FerroWorkoutService.start(ctx, n);   // atualiza a do serviço; se o serviço caiu, tenta reerguer
+            FerroWear.push(ctx, d);
         } catch (Exception ignored) {}
     }
 
@@ -398,6 +431,7 @@ public class FerroNotifPlugin extends Plugin {
         FerroWorkoutService.stop(ctx);
         NotificationManagerCompat.from(ctx).cancel(NOTIF_ID);
         NotificationManagerCompat.from(ctx).cancel(ALERT_ID);
+        FerroWear.push(ctx, null);
         call.resolve();
     }
 }

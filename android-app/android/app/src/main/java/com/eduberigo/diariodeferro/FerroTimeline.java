@@ -183,6 +183,7 @@ final class FerroTimeline {
                 if (RECENT.size() > 24) RECENT.remove(0);
                 if (!say.isEmpty()) FerroSound.say(ctx, say, snd);
                 else if (!snd.isEmpty()) FerroSound.play(ctx, snd, cur.optLong("hold", 0L));
+                if (!title.isEmpty()) FerroWear.alert(ctx, title, cur.optBoolean("vib", true));
                 if (!title.isEmpty()) {
                     // em segundo plano: aviso em destaque (vibra pelo canal); na frente: só a vibração, quando pedida
                     if (!FerroNotifPlugin.fg) FerroNotifPlugin.showAlert(ctx, title, cur.optString("body", ""), cur.optBoolean("vib", true));

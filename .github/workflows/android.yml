@@ -27,6 +27,21 @@ jobs:
           node-version: '22'
       - name: Gerar páginas do app
         run: python3 tools/build.py
+      - name: Chave de assinatura
+        env:
+          JKS: ${{ secrets.FERRO_JKS_B64 }}
+          PW: ${{ secrets.FERRO_JKS_PASSWORD }}
+        run: |
+          # a chave fica nos segredos do repositório; a cópia antiga no repositório só vale enquanto os segredos não existem
+          if [ -n "$JKS" ]; then
+            printf '%s' "$JKS" | tr -d ' \n\r' | base64 -d > android-app/ferro.jks
+            printf 'password=%s\n' "$PW" > android-app/keystore.properties
+            echo "chave: segredos do GitHub"
+          else
+            echo "chave: arquivo do repositório"
+          fi
+          test -s android-app/ferro.jks
+          keytool -list -v -keystore android-app/ferro.jks -storepass "$(grep '^password=' android-app/keystore.properties | cut -d= -f2-)" | grep -qi 'SHA1: BC:B7:9F:BB:81:D9:33:FB:CE:5C:FF:B9:87:ED:01:0E:B9:DE:9E:A8'  # tem de ser sempre a mesma chave
       - name: Preparar projeto Android
         working-directory: android-app
         run: |
@@ -43,7 +58,8 @@ jobs:
         run: |
           cp android-app/android/app/build/outputs/apk/release/app-release.apk diario-de-ferro.apk
           cp android-app/android/app/build/outputs/bundle/release/app-release.aab diario-de-ferro.aab
+          cp android-app/android/wear/build/outputs/apk/release/wear-release.apk diario-de-ferro-relogio.apk
           gh release delete android-latest --yes --cleanup-tag || true
-          gh release create android-latest diario-de-ferro.apk diario-de-ferro.aab \
+          gh release create android-latest diario-de-ferro.apk diario-de-ferro-relogio.apk diario-de-ferro.aab \
             --title "App Android — versão ${GITHUB_RUN_NUMBER}" \
-            --notes "Compilado de ${GITHUB_SHA::7} em $(date -u '+%d/%m/%Y %H:%M') UTC. Baixe o arquivo diario-de-ferro.apk e instale por cima da versão anterior."
+            --notes "Compilado de ${GITHUB_SHA::7} em $(date -u '+%d/%m/%Y %H:%M') UTC. Celular: diario-de-ferro.apk, instale por cima da versão anterior. Relógio (Wear OS): diario-de-ferro-relogio.apk, instale pelo celular com depuração sem fio."

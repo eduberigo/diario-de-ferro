@@ -35,6 +35,14 @@
                 android:value="Cronometro do treino em andamento: mantem series, descanso e os botoes da notificacao funcionando com a tela apagada" />
         </service>
 
+        <!-- relógio (Wear OS): botões, batimentos e pedido de estado -->
+        <service android:name=".FerroWearListener" android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/ferro" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

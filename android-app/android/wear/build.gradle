@@ -1,0 +1,41 @@
+apply plugin: 'com.android.application'
+
+// App do relógio (Wear OS). Mesmo pacote e mesma chave do app do celular: só assim os dois conversam.
+android {
+    namespace = "com.eduberigo.diariodeferro.wear"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.eduberigo.diariodeferro"
+        minSdkVersion 30
+        targetSdkVersion 35   // Wear OS 6 pede a permissão de batimentos pelo app (compatibilidade documentada)
+        versionCode((System.getenv("GITHUB_RUN_NUMBER") ?: "1") as Integer)
+        versionName "1.0." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
+    }
+    signingConfigs {
+        release {
+            def p = new Properties()
+            def f = rootProject.file('../keystore.properties')
+            if (f.exists()) f.withInputStream { p.load(it) }
+            storeFile rootProject.file('../ferro.jks')
+            storePassword p.getProperty('password')
+            keyAlias 'ferro'
+            keyPassword p.getProperty('password')
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation "androidx.core:core:$androidxCoreVersion"
+    implementation "com.google.android.gms:play-services-wearable:19.0.0"
+    implementation "androidx.wear:wear-ongoing:1.0.0"
+}
