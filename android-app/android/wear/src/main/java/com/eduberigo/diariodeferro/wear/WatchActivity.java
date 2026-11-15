@@ -138,9 +138,10 @@ public class WatchActivity extends Activity {
 
     private void askPermission() {
         if (WatchService.canMeasure(this)) return;
-        String p = Build.VERSION.SDK_INT >= 36 ? "android.permission.health.READ_HEART_RATE" : Manifest.permission.BODY_SENSORS;
+        // Wear OS 6 troca BODY_SENSORS por READ_HEART_RATE; pede as duas e o sistema mostra a que vale no relógio
+        String[] p = Build.VERSION.SDK_INT >= 36 ? new String[] {Manifest.permission.BODY_SENSORS, "android.permission.health.READ_HEART_RATE"} : new String[] {Manifest.permission.BODY_SENSORS};
         try {
-            requestPermissions(new String[] {p}, 1);
+            requestPermissions(p, 1);
         } catch (Throwable ignored) {}
     }
 
