@@ -48,6 +48,17 @@ public class WatchActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH)) {   // instalado no celular por engano
+            TextView t = new TextView(this);
+            t.setBackgroundColor(BG);
+            t.setTextColor(TXT);
+            t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
+            t.setGravity(Gravity.CENTER);
+            t.setPadding(dp(28), dp(28), dp(28), dp(28));
+            t.setText("Este é o app do RELÓGIO, instalado no celular por engano.\n\nInstale por cima o arquivo diario-de-ferro.apk (o do celular). Não desinstale: seus treinos continuam guardados e voltam.");
+            setContentView(t);
+            return;
+        }
         scroll = new ScrollView(this);
         scroll.setBackgroundColor(BG);
         scroll.setFillViewport(true);
@@ -106,6 +117,7 @@ public class WatchActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (scroll == null) return;
         WatchState.listener = refresh;
         loadState();
         WatchState.send(this, "/ferro/hello", "");

@@ -8,7 +8,9 @@ android {
         applicationId "com.eduberigo.diariodeferro"
         minSdkVersion 30
         targetSdkVersion 35   // Wear OS 6 pede a permissão de batimentos pelo app (compatibilidade documentada)
-        versionCode((System.getenv("GITHUB_RUN_NUMBER") ?: "1") as Integer)
+        // uma versão abaixo da do celular: se o arquivo do relógio for aberto no celular por engano, o Android recusa
+        // (não instala por cima do app do celular)
+        versionCode(Math.max(1, ((System.getenv("GITHUB_RUN_NUMBER") ?: "2") as Integer) - 1))
         versionName "1.0." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
     }
     signingConfigs {

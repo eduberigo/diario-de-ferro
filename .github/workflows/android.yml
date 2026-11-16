@@ -62,4 +62,4 @@ jobs:
           gh release delete android-latest --yes --cleanup-tag || true
           gh release create android-latest diario-de-ferro.apk diario-de-ferro-relogio.apk diario-de-ferro.aab \
             --title "App Android — versão ${GITHUB_RUN_NUMBER}" \
-            --notes "Compilado de ${GITHUB_SHA::7} em $(date -u '+%d/%m/%Y %H:%M') UTC. Celular: diario-de-ferro.apk, instale por cima da versão anterior. Relógio (Wear OS): diario-de-ferro-relogio.apk, instale pelo celular com depuração sem fio."
+            --notes "Compilado de ${GITHUB_SHA::7} em $(date -u '+%d/%m/%Y %H:%M') UTC. Celular: diario-de-ferro.apk, instale por cima da versão anterior. Relógio (Wear OS): diario-de-ferro-relogio.apk, só no relógio, pelo Bugjaeger com depuração sem fio; não abra esse arquivo no celular."
