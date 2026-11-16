@@ -2,6 +2,7 @@ package com.eduberigo.diariodeferro.wear;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -10,12 +11,16 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.Chronometer;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -28,22 +33,30 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
- * Tela do treino no relógio: fase e cronômetro, exercício e série, batimentos, os mesmos botões da notificação do celular
- * e o ajuste de repetições e carga da série atual.
+ * Tela do treino no relógio. Em destaque: exercício, onde o treino está (aquecimento 2 de 3, série 1 de 4, cardio),
+ * repetições e carga, batimentos e o cronômetro da fase. Os botões são os mesmos do celular, com Voltar em todas as fases.
+ * Ajuste da série em kg ou lb, por passos ou digitando.
  */
 public class WatchActivity extends Activity {
 
-    private static final int BG = 0xFF000000, TXT = 0xFFFFFFFF, MUTED = 0xFFB4BCC6, CARD = 0xFF1E2228;
+    private static final int BG = 0xFF000000, TXT = 0xFFFFFFFF, MUTED = 0xFFB4BCC6, CARD = 0xFF23272E, HR = 0xFFFF5A5F;
+    private static final double LB = 2.20462;   // o mesmo fator do app do celular
     private ScrollView scroll;
-    private LinearLayout main, acts, adj;
-    private TextView label, title, line1, line2, hrTv, idle, repsTv, kgTv, stepTv;
+    private LinearLayout acts, adj;
+    private TextView label, name, pos, load, hrTv, idle, line2, status, stepTv, unitTv, screenTv;
+    private EditText repsEd, wEd;
     private Chronometer chrono;
     private Button adjBtn;
-    private boolean adjOpen = false;
-    private double adjKg = 0, step = 2.5;
-    private int adjReps = 0;
-    private String adjKey = "";
+    private boolean adjOpen = false, keepOn = true, editing = false;
+    private double adjW = 0, step = 5;   // adjW na unidade escolhida
+    private String unit = "lb", adjKey = "";
+    private long sentAt = 0L, sentTs = 0L;
+    private SharedPreferences prefs;
     private final Runnable refresh = this::render;
+    private final Runnable noAnswer = () -> {
+        if (sentAt > 0 && WatchState.stateTs <= sentTs) say("O celular não respondeu. Abra o app no celular.", true);
+        sentAt = 0;
+    };
 
     @Override
     protected void onCreate(Bundle b) {
@@ -59,14 +72,18 @@ public class WatchActivity extends Activity {
             setContentView(t);
             return;
         }
+        prefs = getSharedPreferences("relogio", MODE_PRIVATE);
+        unit = prefs.getString("unit", "lb");
+        keepOn = prefs.getBoolean("keepOn", true);
+        step = "lb".equals(unit) ? 5 : 2.5;
+
         scroll = new ScrollView(this);
         scroll.setBackgroundColor(BG);
         scroll.setFillViewport(true);
-        main = new LinearLayout(this);
+        LinearLayout main = new LinearLayout(this);
         main.setOrientation(LinearLayout.VERTICAL);
         main.setGravity(Gravity.CENTER_HORIZONTAL);
-        int padH = dp(26), padV = dp(30);
-        main.setPadding(padH, padV, padH, dp(44));
+        main.setPadding(dp(24), dp(26), dp(24), dp(48));
         scroll.addView(main, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         idle = text(15, MUTED, false);
@@ -77,27 +94,29 @@ public class WatchActivity extends Activity {
         label.setLetterSpacing(0.08f);
         main.addView(label);
         chrono = new Chronometer(this);
-        chrono.setTextSize(TypedValue.COMPLEX_UNIT_SP, 42);
+        chrono.setTextSize(TypedValue.COMPLEX_UNIT_SP, 34);
         chrono.setTypeface(Typeface.DEFAULT_BOLD);
         chrono.setGravity(Gravity.CENTER);
         chrono.setTextColor(TXT);
         main.addView(chrono, wrap());
-        title = text(16, TXT, true);
-        title.setMaxLines(2);
-        main.addView(title);
-        line1 = text(13, MUTED, false);
-        main.addView(line1);
-        hrTv = text(14, 0xFFFF6B6B, true);
-        main.addView(hrTv);
+        name = text(19, TXT, true);
+        name.setMaxLines(2);
+        main.addView(name, full(2));
+        pos = text(15, TXT, true);
+        main.addView(pos, full(2));
+        load = text(24, TXT, true);
+        main.addView(load, full(2));
+        hrTv = text(30, HR, true);
+        main.addView(hrTv, full(2));
+        status = text(12, 0xFFFFC857, false);
+        main.addView(status, full(2));
 
         acts = new LinearLayout(this);
         acts.setOrientation(LinearLayout.VERTICAL);
         acts.setGravity(Gravity.CENTER_HORIZONTAL);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = dp(8);
-        main.addView(acts, lp);
+        main.addView(acts, full(8));
 
-        adjBtn = button("Ajustar série", CARD, TXT, 14);
+        adjBtn = button("Ajustar reps e carga", CARD, TXT, 14);
         adjBtn.setOnClickListener(v -> openAdj());
         main.addView(adjBtn, full(6));
 
@@ -109,6 +128,13 @@ public class WatchActivity extends Activity {
 
         line2 = text(11, MUTED, false);
         main.addView(line2, full(10));
+        screenTv = button("", CARD, MUTED, 12);
+        screenTv.setOnClickListener(v -> {
+            keepOn = !keepOn;
+            prefs.edit().putBoolean("keepOn", keepOn).apply();
+            render();
+        });
+        main.addView(screenTv, full(8));
 
         setContentView(scroll);
         askPermission();
@@ -120,9 +146,9 @@ public class WatchActivity extends Activity {
         if (scroll == null) return;
         WatchState.listener = refresh;
         loadState();
-        WatchState.send(this, "/ferro/hello", "");
+        WatchState.send(this, "/ferro/hello", "", ok -> { if (!ok) say("Sem conexão com o celular. Bluetooth ligado?", true); });
         render();
-        scroll.requestFocus();   // bezel/coroa rolam a tela
+        if (!editing) scroll.requestFocus();   // bezel/coroa rolam a tela
     }
 
     @Override
@@ -163,13 +189,25 @@ public class WatchActivity extends Activity {
         render();
     }
 
+    private void say(String t, boolean warn) {
+        status.setText(t);
+        status.setTextColor(warn ? 0xFFFFC857 : MUTED);
+        status.setVisibility(t.isEmpty() ? View.GONE : View.VISIBLE);
+    }
+
     private void render() {
         JSONObject s = WatchState.state;
+        if (s != null && System.currentTimeMillis() - WatchState.stateTs > 5L * 3600000L) s = null;   // estado velho demais
         boolean on = s != null;
+        if (on && keepOn) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        if (sentAt > 0 && WatchState.stateTs > sentTs) {   // o celular respondeu
+            sentAt = 0;
+            say("", false);
+        }
         idle.setVisibility(on ? View.GONE : View.VISIBLE);
-        for (View v : new View[] {label, chrono, title, line1, acts, line2}) v.setVisibility(on ? View.VISIBLE : View.GONE);
+        for (View v : new View[] {label, chrono, name, pos, load, hrTv, acts, line2, screenTv}) v.setVisibility(on ? View.VISIBLE : View.GONE);
         if (!on) {
-            hrTv.setVisibility(View.GONE);
             adjBtn.setVisibility(View.GONE);
             adj.setVisibility(View.GONE);
             adjOpen = false;
@@ -177,20 +215,37 @@ public class WatchActivity extends Activity {
         }
         if (!WatchService.running) WatchService.start(this);   // a tela está aberta: pode começar a medir
         int color = parse(s.optString("color", "#F0654D"));
+        JSONObject w = s.optJSONObject("w");
         label.setText(s.optString("label", ""));
         label.setTextColor(color);
-        title.setText(s.optString("title", ""));
-        line1.setText(s.optString("line1", "").replace("  ·  ", "\n"));
-        line2.setText(s.optString("line2", "").replace("  ·  ", " · "));
-        setChrono(s, color);
+        setChrono(s);
+        name.setText(w != null ? w.optString("name", s.optString("title", "")) : s.optString("title", ""));
+        if (w != null) {
+            pos.setText(w.optString("pos", ""));
+            pos.setTextColor(w.optBoolean("warm", false) ? 0xFFF5A524 : color);
+            if (w.optBoolean("time", false)) {
+                int secs = w.optInt("secs", 0);
+                load.setText(w.optBoolean("cardio", false) ? "Meta " + hms(secs) : hms(secs));
+            } else {
+                double kg = w.optDouble("kg", 0);
+                String main = "lb".equals(unit) ? fmt(kg * LB) + " lb" : fmt(kg) + " kg";
+                load.setText(w.optInt("reps", 0) + " reps · " + main);
+            }
+        } else {
+            pos.setText("");
+            load.setText(s.optString("line1", ""));
+        }
+        line2.setText((w != null ? "Exercício " + w.optString("exN", "") + " · " : "") + s.optString("line2", "").replace("  ·  ", " · ").replaceFirst("^Exercício \\d+ de \\d+( · )?", ""));
+        screenTv.setText(keepOn ? "Tela sempre ligada: sim" : "Tela sempre ligada: não");
 
         int bpm = WatchState.hr;
         boolean fresh = bpm > 0 && System.currentTimeMillis() - WatchState.hrAt < 15000L;
-        hrTv.setVisibility(View.VISIBLE);
-        hrTv.setText(fresh ? "♥ " + bpm + " bpm" : WatchService.canMeasure(this) ? "♥ medindo…" : "♥ sem permissão de batimentos");
+        hrTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, fresh ? 30 : 14);
+        hrTv.setText(fresh ? "♥ " + bpm : WatchService.canMeasure(this) ? "♥ medindo…" : "♥ sem permissão de batimentos");
 
         acts.removeAllViews();
-        JSONArray a = s.optJSONArray("actions");
+        JSONArray a = s.optJSONArray("wact");
+        if (a == null) a = s.optJSONArray("actions");
         LinearLayout row = null;
         if (a != null) {
             for (int i = 0; i < a.length(); i++) {
@@ -198,27 +253,25 @@ public class WatchActivity extends Activity {
                 if (o == null) continue;
                 final String id = o.optString("id", "");
                 boolean primary = o.optBoolean("primary", false);
-                Button btn = button(o.optString("label", ""), primary ? color : CARD, primary ? 0xFF111111 : TXT, primary ? 17 : 14);
-                btn.setOnClickListener(v -> {
-                    WatchState.vibrate(this, new long[] {0, 40});
-                    WatchState.send(this, "/ferro/act", id);
-                });
+                Button btn = button(o.optString("label", ""), primary ? color : CARD, primary ? 0xFF111111 : TXT, primary ? 18 : 13);
+                btn.setOnClickListener(v -> act(id));
                 if (primary) {
-                    acts.addView(btn, 0, full(0));
+                    LinearLayout.LayoutParams lp = full(0);
+                    lp.height = dp(56);
+                    acts.addView(btn, 0, lp);
                 } else {
-                    if (row == null) {
+                    if (row == null || row.getChildCount() >= 3) {
                         row = new LinearLayout(this);
                         row.setOrientation(LinearLayout.HORIZONTAL);
                         acts.addView(row, full(6));
                     }
-                    LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                    LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(48), 1f);
                     p.setMargins(dp(2), 0, dp(2), 0);
                     row.addView(btn, p);
                 }
             }
         }
 
-        JSONObject w = s.optJSONObject("w");
         boolean canAdj = w != null && !w.optBoolean("time", false);
         String key = w == null ? "" : w.optInt("ex", -1) + "/" + w.optInt("set", -1);
         if (!key.equals(adjKey)) adjOpen = false;   // mudou de série: fecha o ajuste
@@ -226,7 +279,23 @@ public class WatchActivity extends Activity {
         adj.setVisibility(canAdj && adjOpen ? View.VISIBLE : View.GONE);
     }
 
-    private void setChrono(JSONObject s, int color) {
+    /** Toque num botão: manda ao celular e mostra se chegou. */
+    private void act(String id) {
+        WatchState.vibrate(this, new long[] {0, 40});
+        sentAt = System.currentTimeMillis();
+        sentTs = WatchState.stateTs;
+        say("Enviando…", false);
+        WatchState.send(this, "/ferro/act", id, ok -> {
+            if (!ok) {
+                sentAt = 0;
+                say("Sem conexão com o celular. Bluetooth ligado?", true);
+            }
+        });
+        WatchState.MAIN.removeCallbacks(noAnswer);
+        WatchState.MAIN.postDelayed(noAnswer, 4000L);
+    }
+
+    private void setChrono(JSONObject s) {
         String mode = s.optString("chrono", "up");
         if ("none".equals(mode)) {
             chrono.stop();
@@ -248,37 +317,106 @@ public class WatchActivity extends Activity {
         else chrono.start();
     }
 
-    // ---------- ajuste da série: repetições e carga ----------
+    // ---------- ajuste da série: repetições e carga (kg ou lb), por passos ou digitando ----------
     private void buildAdj() {
         TextView h = text(12, MUTED, true);
         h.setText("AJUSTAR SÉRIE");
         adj.addView(h);
-        repsTv = text(22, TXT, true);
-        adj.addView(stepper(repsTv, v -> { adjReps = Math.max(0, adjReps - 1); showAdj(); }, v -> { adjReps = Math.min(200, adjReps + 1); showAdj(); }), full(4));
-        kgTv = text(20, TXT, true);
-        adj.addView(stepper(kgTv, v -> { adjKg = Math.max(0, round(adjKg - step)); showAdj(); }, v -> { adjKg = Math.min(999, round(adjKg + step)); showAdj(); }), full(4));
+        repsEd = edit(false);
+        adj.addView(stepper(repsEd, "reps", v -> setReps(reps() - 1), v -> setReps(reps() + 1)), full(4));
+        wEd = edit(true);
+        unitTv = text(13, MUTED, true);
+        adj.addView(stepper(wEd, null, v -> setW(w() - step), v -> setW(w() + step)), full(4));
+        LinearLayout r = new LinearLayout(this);
+        r.setOrientation(LinearLayout.HORIZONTAL);
+        Button u = button("", CARD, TXT, 13);
+        u.setOnClickListener(v -> {   // troca a unidade mantendo a carga
+            double kg = toKg(w());
+            unit = "lb".equals(unit) ? "kg" : "lb";
+            prefs.edit().putString("unit", unit).apply();
+            step = "lb".equals(unit) ? 5 : 2.5;
+            adjW = round("lb".equals(unit) ? kg * LB : kg);
+            showAdj();
+        });
         stepTv = button("", CARD, MUTED, 12);
-        stepTv.setOnClickListener(v -> { step = step == 2.5 ? 5 : step == 5 ? 1 : 2.5; showAdj(); });
-        adj.addView(stepTv, full(4));
-        Button save = button("Salvar", 0xFF46BF78, 0xFF111111, 16);
+        stepTv.setOnClickListener(v -> {
+            step = "lb".equals(unit) ? (step == 5 ? 2.5 : step == 2.5 ? 10 : 5) : (step == 2.5 ? 5 : step == 5 ? 1 : 2.5);
+            showAdj();
+        });
+        LinearLayout.LayoutParams p1 = new LinearLayout.LayoutParams(0, dp(44), 1f);
+        p1.setMargins(dp(2), 0, dp(2), 0);
+        r.addView(u, p1);
+        LinearLayout.LayoutParams p2 = new LinearLayout.LayoutParams(0, dp(44), 1.4f);
+        p2.setMargins(dp(2), 0, dp(2), 0);
+        r.addView(stepTv, p2);
+        adj.addView(r, full(4));
+        unitBtn = u;
+        adj.addView(unitTv, full(2));
+        Button save = button("Salvar", 0xFF46BF78, 0xFF111111, 17);
         save.setOnClickListener(v -> {
+            readEdits();
             JSONObject w = WatchState.state == null ? null : WatchState.state.optJSONObject("w");
-            if (w != null) WatchState.send(this, "/ferro/act", "adj|" + adjReps + "|" + fmt(adjKg) .replace(',', '.') + "|" + w.optInt("ex") + "|" + w.optInt("set"));
-            WatchState.vibrate(this, new long[] {0, 40});
+            if (w != null) {
+                String kg = String.format(Locale.US, "%.4f", toKg(adjW));
+                act("adj|" + Math.max(0, reps()) + "|" + kg + "|" + w.optInt("ex") + "|" + w.optInt("set"));
+            }
             adjOpen = false;
+            editing = false;
             render();
         });
-        adj.addView(save, full(8));
+        LinearLayout.LayoutParams sp = full(8);
+        sp.height = dp(52);
+        adj.addView(save, sp);
         Button cancel = button("Cancelar", CARD, TXT, 14);
-        cancel.setOnClickListener(v -> { adjOpen = false; render(); });
+        cancel.setOnClickListener(v -> { adjOpen = false; editing = false; render(); });
         adj.addView(cancel, full(4));
+    }
+
+    private Button unitBtn;
+    private int adjReps = 0;
+
+    private int reps() {
+        return adjReps;
+    }
+
+    private double w() {
+        return adjW;
+    }
+
+    private void setReps(int r) {
+        readEdits();
+        adjReps = Math.max(0, Math.min(200, r));
+        showAdj();
+    }
+
+    private void setW(double v) {
+        readEdits();
+        adjW = Math.max(0, Math.min(2000, round(v)));
+        showAdj();
+    }
+
+    private double toKg(double v) {
+        return "lb".equals(unit) ? v / LB : v;
+    }
+
+    /** O que foi digitado nos campos vale antes de qualquer + ou −. */
+    private void readEdits() {
+        try {
+            String t = repsEd.getText().toString().trim();
+            if (!t.isEmpty()) adjReps = Math.max(0, Integer.parseInt(t));
+        } catch (Exception ignored) {}
+        try {
+            String t = wEd.getText().toString().trim().replace(',', '.');
+            if (!t.isEmpty()) adjW = Math.max(0, Double.parseDouble(t));
+        } catch (Exception ignored) {}
     }
 
     private void openAdj() {
         JSONObject w = WatchState.state == null ? null : WatchState.state.optJSONObject("w");
         if (w == null) return;
         adjReps = w.optInt("reps", 0);
-        adjKg = w.optDouble("kg", 0);
+        double kg = w.optDouble("kg", 0);
+        adjW = round("lb".equals(unit) ? kg * LB : kg);
         adjKey = w.optInt("ex", -1) + "/" + w.optInt("set", -1);
         adjOpen = true;
         showAdj();
@@ -287,26 +425,51 @@ public class WatchActivity extends Activity {
     }
 
     private void showAdj() {
-        repsTv.setText(adjReps + " reps");
-        kgTv.setText(fmt(adjKg) + " kg\n" + fmt(round(adjKg * 2.2046226218)) + " lb");
-        stepTv.setText("passo da carga: " + fmt(step) + " kg");
+        repsEd.setText(String.valueOf(adjReps));
+        wEd.setText(fmt(adjW).replace(',', '.'));
+        unitBtn.setText("lb".equals(unit) ? "em lb ⇄ kg" : "em kg ⇄ lb");
+        stepTv.setText("passo " + fmt(step) + " " + unit);
+        double other = "lb".equals(unit) ? adjW / LB : adjW * LB;
+        unitTv.setText("reps · carga em " + unit + "  (= " + fmt(other) + ("lb".equals(unit) ? " kg)" : " lb)"));
     }
 
-    private LinearLayout stepper(TextView value, View.OnClickListener minus, View.OnClickListener plus) {
+    private EditText edit(boolean decimal) {
+        EditText e = new EditText(this);
+        e.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
+        e.setTypeface(Typeface.DEFAULT_BOLD);
+        e.setTextColor(TXT);
+        e.setGravity(Gravity.CENTER);
+        e.setSelectAllOnFocus(true);
+        e.setSingleLine(true);
+        e.setInputType(decimal ? InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL : InputType.TYPE_CLASS_NUMBER);
+        e.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        e.setBackground(null);
+        e.setOnFocusChangeListener((v, has) -> { editing = has; if (!has) readEdits(); });
+        e.setOnEditorActionListener((v, id, ev) -> { readEdits(); showAdj(); v.clearFocus(); return false; });
+        return e;
+    }
+
+    private LinearLayout stepper(View value, String unitLabel, View.OnClickListener minus, View.OnClickListener plus) {
         LinearLayout r = new LinearLayout(this);
         r.setOrientation(LinearLayout.HORIZONTAL);
         r.setGravity(Gravity.CENTER_VERTICAL);
-        Button m = button("−", CARD, TXT, 22);
+        Button m = button("−", CARD, TXT, 24);
         m.setOnClickListener(minus);
-        Button p = button("+", CARD, TXT, 22);
+        Button p = button("+", CARD, TXT, 24);
         p.setOnClickListener(plus);
-        r.addView(m, new LinearLayout.LayoutParams(dp(46), dp(46)));
+        r.addView(m, new LinearLayout.LayoutParams(dp(48), dp(48)));
         r.addView(value, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        r.addView(p, new LinearLayout.LayoutParams(dp(46), dp(46)));
+        r.addView(p, new LinearLayout.LayoutParams(dp(48), dp(48)));
         return r;
     }
 
     // ---------- utilidades ----------
+    private static String hms(int sec) {
+        sec = Math.max(0, sec);
+        int h = sec / 3600, m = sec % 3600 / 60, x = sec % 60;
+        return h > 0 ? String.format(Locale.US, "%d:%02d:%02d", h, m, x) : String.format(Locale.US, "%d:%02d", m, x);
+    }
+
     private static double round(double v) {
         return Math.round(v * 10.0) / 10.0;
     }
@@ -347,10 +510,10 @@ public class WatchActivity extends Activity {
         b.setTypeface(Typeface.DEFAULT_BOLD);
         b.setMinHeight(dp(44));
         b.setMinimumHeight(dp(44));
-        b.setPadding(dp(6), dp(4), dp(6), dp(4));
+        b.setPadding(dp(4), dp(2), dp(4), dp(2));
         GradientDrawable d = new GradientDrawable();
         d.setColor(bg);
-        d.setCornerRadius(dp(24));
+        d.setCornerRadius(dp(26));
         b.setBackground(d);
         b.setStateListAnimator(null);
         return b;

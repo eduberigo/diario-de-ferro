@@ -1968,7 +1968,7 @@ function natInit() {
 }
 function natAct(raw) {
   if (!run || run.phase === 'done') return;
-  if (String(raw || '').startsWith('adj|')) { const [, r, k, ei, si] = String(raw).split('|'), e = run.exs[+ei], st = e && e.sets[+si]; remindStop(); if (st && e.type !== 'time') { st.reps = Math.max(0, Math.round(+r) || 0); st.kg = Math.max(0, Math.round((+k || 0) * 10) / 10); persistRun(); toast('Série ajustada no relógio'); } natLast = ''; clearTimeout(natT); natPush(); if (view.n === 'run') render(); return; }
+  if (String(raw || '').startsWith('adj|')) { const [, r, k, ei, si] = String(raw).split('|'), e = run.exs[+ei], st = e && e.sets[+si]; remindStop(); if (st && e.type !== 'time') { st.reps = Math.max(0, Math.round(+r) || 0); st.kg = Math.max(0, Math.round((+k || 0) * 10000) / 10000); persistRun(); toast('Série ajustada no relógio'); } natLast = ''; clearTimeout(natT); natPush(); if (view.n === 'run') render(); return; }
   const [id, stamp] = String(raw || '').split(':');
   if (id !== 'tick') remindStop();
   if (id === 'tick') { runDue(1); natLast = ''; clearTimeout(natT); natPush(); if (view.n === 'run') render(); return; }
@@ -2030,17 +2030,27 @@ const NCOL = {warmup: '#46BF78', prepare: '#E6B422', exec: '#F0654D', rest: '#4D
 function natPayload() {
   const ex = curEx(), st = ex.sets[run.setIdx] || {}, v = phaseView(), P = run.phase, pz = !!run.pausedAt;
   const label = pz ? 'PAUSADO' : isWaiting() ? 'HORA DE COMEÇAR' : {warmup: 'AQUECIMENTO', prepare: 'PREPARE-SE', exec: ex.type === 'time' ? 'SEGURE A POSIÇÃO' : 'EXECUTANDO', rest: 'DESCANSO · PRÓXIMA SÉRIE'}[P] || '';
-  const load = ex.type === 'time' ? `${st.secs} s` : `${fmtN(st.reps)} reps  ·  ${fmtN(st.kg)} kg  ·  ${f1(st.kg * LB)} lb  ·  RIR ${st.rir ?? S.settings.defaultRir}`;
+  const cardio = isCardio(ex), load = ex.type === 'time' ? (st.secs >= 60 ? fmtHms(st.secs) : `${st.secs} s`) : `${fmtN(st.reps)} reps  ·  ${fmtN(st.kg)} kg  ·  ${f1(st.kg * LB)} lb  ·  RIR ${st.rir ?? S.settings.defaultRir}`;
   const nx = nextTargetFrom(run.exIdx), nxName = nx && nx[0] !== run.exIdx ? run.exs[nx[0]].name : '';
   const tp = st.tempo || ex.tempo;
   const line2 = [tp && ex.type !== 'time' ? `Cadência ${tp}` : '', `Exercício ${run.exIdx + 1} de ${run.exs.length}`, nxName && ex.sets.filter(x => !x.done).length <= 1 ? `depois: ${nxName}` : ''].filter(Boolean).join('  ·  ');
   const actions = natActions(isWaiting() ? 'wait-' + P : P, pz);
   actions.forEach(a => { if (a.id === 'next' || a.id === 'back') a.id += ':' + run.phaseStart; });
-  const o = {label, color: NCOL[pz ? 'paused' : P] || '#F0654D', title: exLabel(ex), line1: `${cap1(setNo(ex, run.setIdx).txt)}  ·  ${load}`, line2, actions};
+  const o = {label, color: NCOL[pz ? 'paused' : P] || '#F0654D', title: exLabel(ex), line1: cardio ? `Cardio  ·  ${load}` : `${cap1(setNo(ex, run.setIdx).txt)}  ·  ${load}`, line2, actions};
   if (v.count) { o.chrono = 'down'; if (pz) o.shownMs = Math.max(0, v.rem); else o.endAt = phaseEndAt() || Math.round((Date.now() + v.rem - overMs()) / 1000) * 1000; }
   else { o.chrono = 'up'; if (pz) o.shownMs = v.el; else o.startAt = run.phaseStart; }
   o.paused = pz;
-  o.w = {ex: run.exIdx, set: run.setIdx, reps: +st.reps || 0, kg: +st.kg || 0, time: ex.type === 'time'};
+  // relógio: os dados da série em destaque e todos os botões (com Voltar em todas as fases, para navegar pelas séries)
+  const n = setNo(ex, run.setIdx), tot = ex.sets.filter(x => !!x.warm === !!st.warm && (x.side || '') === (st.side || '') && !x.kind).length;
+  o.w = {ex: run.exIdx, set: run.setIdx, name: exLabel(ex), pos: cardio ? 'Cardio' : cap1(n.txt), reps: +st.reps || 0, kg: +st.kg || 0, rir: st.rir ?? null, time: ex.type === 'time', cardio, secs: +st.secs || 0, warm: !!st.warm, exN: `${run.exIdx + 1}/${run.exs.length}`, tot};
+  const W = {back: {id: 'back', label: 'Voltar'}, pause: {id: 'pause', label: 'Pausar'}}, PW = isWaiting() ? 'wait-' + P : P;
+  o.wact = (pz ? [W.back, {id: 'pause', label: 'Continuar', primary: true}, {id: 'next', label: 'Próximo'}]
+    : PW === 'rest' ? [W.back, {id: 'plus', label: '+15 s'}, W.pause, {id: 'next', label: 'Pular descanso', primary: true}]
+    : PW === 'exec' ? [W.back, W.pause, {id: 'next', label: cardio ? 'Terminei' : 'Feito', primary: true}]
+    : PW === 'prepare' ? [W.back, {id: 'plus', label: '+10 s'}, W.pause, {id: 'next', label: 'Começar', primary: true}]
+    : PW === 'wait-rest' ? [W.back, {id: 'plus', label: '+15 s'}, W.pause, {id: 'next', label: 'Começar', primary: true}]
+    : PW === 'wait-prepare' ? [W.back, {id: 'plus', label: '+10 s'}, W.pause, {id: 'next', label: 'Começar', primary: true}]
+    : [W.back, W.pause, {id: 'next', label: 'Começar', primary: true}]).map(a => Object.assign({}, a, a.id === 'next' || a.id === 'back' ? {id: a.id + ':' + run.phaseStart} : {}));
   return o;
 }
 function natSync() {

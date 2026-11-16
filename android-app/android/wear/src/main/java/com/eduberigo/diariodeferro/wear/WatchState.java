@@ -44,17 +44,34 @@ final class WatchState {
         if (l != null) MAIN.post(l);
     }
 
+    /** Resultado do envio para a tela: true = entregue a um celular conectado, false = sem conexão. */
+    interface Sent {
+        void done(boolean ok);
+    }
+
     static void send(Context c, final String path, final String text) {
+        send(c, path, text, null);
+    }
+
+    static void send(Context c, final String path, final String text, final Sent cb) {
         final Context ctx = c.getApplicationContext();
         try {
             Wearable.getNodeClient(ctx).getConnectedNodes().addOnSuccessListener(nodes -> {
+                if (nodes.isEmpty()) {
+                    if (cb != null) MAIN.post(() -> cb.done(false));
+                    return;
+                }
                 for (Node n : nodes) {
                     try {
-                        Wearable.getMessageClient(ctx).sendMessage(n.getId(), path, text.getBytes(StandardCharsets.UTF_8));
+                        Wearable.getMessageClient(ctx).sendMessage(n.getId(), path, text.getBytes(StandardCharsets.UTF_8))
+                            .addOnSuccessListener(x -> { if (cb != null) MAIN.post(() -> cb.done(true)); })
+                            .addOnFailureListener(e -> { if (cb != null) MAIN.post(() -> cb.done(false)); });
                     } catch (Throwable ignored) {}
                 }
-            });
-        } catch (Throwable ignored) {}
+            }).addOnFailureListener(e -> { if (cb != null) MAIN.post(() -> cb.done(false)); });
+        } catch (Throwable t) {
+            if (cb != null) MAIN.post(() -> cb.done(false));
+        }
     }
 
     @SuppressWarnings("deprecation")
