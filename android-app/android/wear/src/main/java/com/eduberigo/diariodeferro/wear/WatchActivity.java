@@ -24,6 +24,8 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import com.google.android.gms.wearable.DataClient;
+import com.google.android.gms.wearable.DataEvent;
 import com.google.android.gms.wearable.DataItem;
 import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.DataMapItem;
@@ -53,6 +55,15 @@ public class WatchActivity extends Activity {
     private long sentAt = 0L, sentTs = 0L;
     private SharedPreferences prefs;
     private final Runnable refresh = this::render;
+    /* com a tela aberta, recebe o estado direto (o serviço de fundo pode atrasar a entrega) */
+    private final DataClient.OnDataChangedListener live = events -> {
+        for (DataEvent e : events) {
+            if (e.getType() != DataEvent.TYPE_CHANGED || !"/ferro/state".equals(e.getDataItem().getUri().getPath())) continue;
+            DataMap m = DataMapItem.fromDataItem(e.getDataItem()).getDataMap();
+            WatchState.update(this, m.getString("json", ""), m.getLong("ts", 0L));
+        }
+    };
+    private final Runnable reload = this::loadState;
     private final Runnable noAnswer = () -> {
         if (sentAt > 0 && WatchState.stateTs <= sentTs) say("O celular não respondeu. Abra o app no celular.", true);
         sentAt = 0;
@@ -145,6 +156,9 @@ public class WatchActivity extends Activity {
         super.onResume();
         if (scroll == null) return;
         WatchState.listener = refresh;
+        try {
+            Wearable.getDataClient(this).addListener(live);
+        } catch (Throwable ignored) {}
         loadState();
         WatchState.send(this, "/ferro/hello", "", ok -> { if (!ok) say("Sem conexão com o celular. Bluetooth ligado?", true); });
         render();
@@ -154,6 +168,9 @@ public class WatchActivity extends Activity {
     @Override
     protected void onPause() {
         WatchState.listener = null;
+        try {
+            Wearable.getDataClient(this).removeListener(live);
+        } catch (Throwable ignored) {}
         super.onPause();
     }
 
@@ -293,6 +310,9 @@ public class WatchActivity extends Activity {
         });
         WatchState.MAIN.removeCallbacks(noAnswer);
         WatchState.MAIN.postDelayed(noAnswer, 4000L);
+        WatchState.MAIN.removeCallbacks(reload);   // se a atualização não chegar sozinha, busca o estado de novo
+        WatchState.MAIN.postDelayed(reload, 1500L);
+        WatchState.MAIN.postDelayed(reload, 3500L);
     }
 
     private void setChrono(JSONObject s) {
