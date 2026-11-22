@@ -16,6 +16,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
 import android.os.SystemClock;
+import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.speech.tts.TextToSpeech;
@@ -356,15 +357,22 @@ final class FerroSound {
         if (!spoke && alt != null && !alt.isEmpty()) play(ctx, alt, 1300L);
     }
 
-    // ---------- vibração (com o app na frente; em segundo plano quem vibra é o aviso em destaque) ----------
+    // ---------- vibração ----------
+    // Marcada como vibração de ALARME: o Android só cala no modo silencioso as de toque de chamada e de notificação,
+    // e é das poucas que um app em segundo plano pode fazer. Por isso vibra com o celular no silencioso.
     @SuppressWarnings("deprecation")
     static void vibrate(Context ctx) {
         try {
             Vibrator v = (Vibrator) ctx.getSystemService(Context.VIBRATOR_SERVICE);
             if (v == null || !v.hasVibrator()) return;
-            long[] p = {0, 200, 100, 200};
-            if (Build.VERSION.SDK_INT >= 26) v.vibrate(VibrationEffect.createWaveform(p, -1));
-            else v.vibrate(p, -1);
+            long[] p = {0, 260, 140, 260};
+            if (Build.VERSION.SDK_INT >= 33) {
+                v.vibrate(VibrationEffect.createWaveform(p, -1), new VibrationAttributes.Builder().setUsage(VibrationAttributes.USAGE_ALARM).build());
+            } else if (Build.VERSION.SDK_INT >= 26) {
+                v.vibrate(VibrationEffect.createWaveform(p, -1), new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
+            } else {
+                v.vibrate(p, -1);
+            }
         } catch (Throwable ignored) {}
     }
 

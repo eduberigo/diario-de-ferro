@@ -44,6 +44,62 @@ public class FerroNotifPlugin extends Plugin {
     @Override
     protected void handleOnPause() { fg = false; }
 
+    // ---------- página acordada em segundo plano ----------
+    // Com a tela do app fora de vista, o Android trata a página como oculta e, depois de um tempo, para o JavaScript dela:
+    // os toques na notificação e no relógio só eram obedecidos quando o app voltava para a frente. Durante um treino,
+    // dizemos à página que ela continua visível (o mesmo recurso dos plugins de "modo segundo plano").
+    static volatile boolean stopped = false;      // a tela do app não está visível
+    static volatile long actAt = 0L, ackAt = 0L;  // último toque repassado em segundo plano e quando a página respondeu
+    static volatile int bgActs = 0, bgAcks = 0;
+    static volatile long bgWorst = 0L;
+
+    @Override
+    protected void handleOnStart() { stopped = false; }
+
+    @Override
+    protected void handleOnStop() {
+        stopped = true;
+        FerroSound.MAIN.postDelayed(FerroNotifPlugin::wakePage, 1000L);   // depois de o sistema avisar a página que ela sumiu
+    }
+
+    static void wakePage() {
+        FerroNotifPlugin p = instance;
+        if (p == null || !stopped || !FerroWorkoutService.running) return;
+        try {
+            View w = p.getBridge().getWebView();
+            if (w != null) w.dispatchWindowVisibilityChanged(View.VISIBLE);
+        } catch (Throwable ignored) {}
+    }
+
+    /** Treino acabou com o app fora de vista: a página pode voltar a dormir. */
+    static void sleepPage() {
+        FerroNotifPlugin p = instance;
+        if (p == null || !stopped) return;
+        try {
+            View w = p.getBridge().getWebView();
+            if (w != null) w.dispatchWindowVisibilityChanged(View.GONE);
+        } catch (Throwable ignored) {}
+    }
+
+    /** A página avisa que recebeu um toque (da notificação ou do relógio); serve para o diagnóstico. */
+    @PluginMethod
+    public void ack(PluginCall call) {
+        long at = call.getData().optLong("at", 0L), now = System.currentTimeMillis();
+        if (at > 0 && at == actAt) {
+            ackAt = now;
+            bgAcks++;
+            if (now - at > bgWorst) bgWorst = now - at;
+        }
+        call.resolve();
+    }
+
+    /** Vibração pedida pela página (vale também no modo silencioso). */
+    @PluginMethod
+    public void vibrate(PluginCall call) {
+        FerroSound.vibrate(getContext());
+        call.resolve();
+    }
+
     @Override
     public void load() {
         instance = this;
@@ -193,6 +249,10 @@ public class FerroNotifPlugin extends Plugin {
             r.put("notif", NotificationManagerCompat.from(ctx).areNotificationsEnabled());
             r.put("service", FerroWorkoutService.running);
             r.put("fg", fg);
+            r.put("bgActs", bgActs);
+            r.put("bgAcks", bgAcks);
+            r.put("bgWorst", bgWorst);
+            r.put("bgWaiting", actAt > ackAt && System.currentTimeMillis() - actAt > 3000L);
             r.put("pending", FerroTimeline.pending());
             android.os.PowerManager pm = (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
             r.put("battery", pm != null && Build.VERSION.SDK_INT >= 23 && pm.isIgnoringBatteryOptimizations(ctx.getPackageName()));
@@ -254,8 +314,15 @@ public class FerroNotifPlugin extends Plugin {
     }
 
     void fire(String action) {
+        long now = System.currentTimeMillis();
+        wakePage();
+        if (stopped && !"tick".equals(action)) {
+            actAt = now;
+            bgActs++;
+        }
         JSObject d = new JSObject();
         d.put("action", action);
+        d.put("at", now);   // hora do toque: se a página só acordar depois, ela aplica com essa hora
         notifyListeners("action", d, true);
     }
 
@@ -432,6 +499,7 @@ public class FerroNotifPlugin extends Plugin {
         NotificationManagerCompat.from(ctx).cancel(NOTIF_ID);
         NotificationManagerCompat.from(ctx).cancel(ALERT_ID);
         FerroWear.push(ctx, null);
+        FerroSound.MAIN.postDelayed(FerroNotifPlugin::sleepPage, 1500L);
         call.resolve();
     }
 }

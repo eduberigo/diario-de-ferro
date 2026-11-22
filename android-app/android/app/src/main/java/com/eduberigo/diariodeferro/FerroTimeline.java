@@ -185,9 +185,11 @@ final class FerroTimeline {
                 else if (!snd.isEmpty()) FerroSound.play(ctx, snd, cur.optLong("hold", 0L));
                 if (!title.isEmpty()) FerroWear.alert(ctx, title, cur.optBoolean("vib", true));
                 if (!title.isEmpty()) {
-                    // em segundo plano: aviso em destaque (vibra pelo canal); na frente: só a vibração, quando pedida
-                    if (!FerroNotifPlugin.fg) FerroNotifPlugin.showAlert(ctx, title, cur.optString("body", ""), cur.optBoolean("vib", true));
-                    else if (cur.optBoolean("buzz", false)) FerroSound.vibrate(ctx);
+                    // em segundo plano: aviso em destaque; na frente: nada na tela. A vibração é sempre feita aqui
+                    // (como alarme, para valer também no modo silencioso), nunca pelo canal da notificação
+                    boolean bg = !FerroNotifPlugin.fg;
+                    if (bg) FerroNotifPlugin.showAlert(ctx, title, cur.optString("body", ""), false);
+                    if (bg ? cur.optBoolean("vib", true) : cur.optBoolean("buzz", false)) FerroSound.vibrate(ctx);
                 }
             }
             if (!cur.optBoolean("quiet", false)) FerroNotifPlugin.tick();

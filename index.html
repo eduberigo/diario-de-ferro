@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12161b">
-<script>window.FERRO_BUILD = '202611192040';</script>
+<script>window.FERRO_BUILD = '202611221429';</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -763,7 +763,7 @@ async function runBackup(user) {
 }
 setInterval(() => syncNow(false), 60000);
 window.addEventListener('online', () => syncNow(true));
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncNow(true); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !(NAT && !natFg)) syncNow(true); });
 function markDeleted(id) { S.deletedSessions = (S.deletedSessions || []).concat(id).slice(-2000); persist(); }
 async function initCloud() {
   try {
@@ -992,7 +992,7 @@ function est(w) {
   const st = S.settings, r = rate(), chg = +st.exChange || 0;
   let exec = 0, prep = 0, rest = 0, load = 0;
   w.exercises.forEach((e, i) => {
-    const lib = getEx(e.exId), rs = e.rest ?? st.defaultRest;
+    const lib = getEx(e.exId), rs0 = e.rest ?? st.defaultRest, rs = st.continuous ? Math.max(0, rs0 - prepOf(e)) : rs0;   // contínuo: o preparo sai de dentro do descanso
     const t0 = tempoOf(e, w);
     if (lib.type !== 'time' && e.plan && e.plan.length) {
       const pl = e.plan, kinds = pl.filter(p => p.kind).length;
@@ -1266,7 +1266,7 @@ function settingsView() {
   <button class="card wrow" data-act="myEx" style="margin-bottom:10px"><span class="badge">${ic('list')}</span><span class="t"><b>Meus exercícios</b><span class="muted small">${S.customEx.length} criado(s) por você</span></span></button>
   <button class="card wrow" data-act="gym" style="margin-bottom:16px"><span class="badge">${ic('dumb')}</span><span class="t"><b>Minha academia</b><span class="muted small">Equipamentos que você tem</span></span></button>
   <div class="card">${tg('continuous', 'Treino contínuo', 'Avança sozinho quando o cronômetro termina. Desligado, você toca em Próximo.')}${tg('sound', 'Alerta sonoro', 'Toca um aviso quando um cronômetro termina.')}${tg('vibrate', 'Vibrar', 'Vibra ao fim do descanso, quando o aparelho permitir.')}${tg('warmup', 'Aquecimento', 'Começa o treino com uma fase de aquecimento livre.')}${tg('prep', 'Tempo em preparação', 'Contagem antes de cada série.')}
-  ${nf('prepSec', 'Preparação', 'Segundos de contagem.', 's')}${nf('defaultRest', 'Descanso padrão', 'Usado nos exercícios novos.', 's')}
+  ${nf('prepSec', 'Preparação', 'Segundos de contagem. No treino contínuo saem de dentro do descanso: descanso de 2 min com preparo de 15 s = 1:45 + 0:15.', 's')}${nf('defaultRest', 'Descanso padrão', 'Usado nos exercícios novos.', 's')}
   <div class="set" style="border-bottom:0;padding-bottom:0"><div class="t"><b>Estimativa de duração do treino</b><span class="muted small">Usada no tempo e nas calorias previstas de cada treino.</span></div></div>
   <div class="set" style="display:block"><div class="t" style="margin-bottom:6px"><b>Cadência padrão</b><span class="muted small">Vale para os treinos e exercícios que não têm cadência própria.</span></div>${tempoBlock('sf', S.settings.tempo, '', '', true)}</div>${nf('exChange', 'Troca de exercício', 'Tempo para trocar de aparelho e ajustar.', 's')}
   <div class="set"><div class="t"><b>RIR padrão</b><span class="muted small">Repetições na reserva dos exercícios novos.</span></div><select data-act-change="setrir" aria-label="RIR padrão" style="width:110px">${rirOpts(s.defaultRir)}</select></div>
@@ -1859,7 +1859,8 @@ function holdAudio(ms) { clearTimeout(audioTimer); audioTimer = setTimeout(() =>
 /* app Android: todo som sai pelo tocador nativo (FerroSound), com o app na frente ou não: um caminho só, um volume só */
 const natFn = () => { const f = NAT ? natP('FerroNotif') : null; return f && f.play ? f : null; };
 function natCall(m, a) { const f = natFn(); if (!f || !f[m]) return null; try { const r = f[m](a || {}); if (r && r.catch) r.catch(() => {}); return r; } catch (e) { return null; } }
-function natPlay(k, hold) { if (!natFn()) return false; natCall('play', {sound: 'snd:' + k, hold: hold || 0}); return true; }
+function natPlay(k, hold) { if (!natFn()) return false; if (natMute) return true;   // toque antigo sendo posto em dia: sem som fora de hora
+  natCall('play', {sound: 'snd:' + k, hold: hold || 0}); return true; }
 const cntKey = n => { const m = S.settings.countMode; return 'c_' + (COUNT_SND[m] ? m : 'bipe') + (n === 1 ? '_b' : '_a'); };   // som de cada segundo da contagem (o último é diferente)
 const VOLS = {forte: [100, 1000], 'max+': [100, 600], max: [100, 0], alto: [85, 0], cel: [0, 0]};   // [% do volume de alarme durante o aviso, reforço em mB]
 function natCfg() { const v = VOLS[S.settings.alertVol] || VOLS['max+']; natCall('config', {vol: v[0], boost: v[1]}); }
@@ -1955,7 +1956,7 @@ function mediaUpdate() {
 }
 
 /* ---------- app Android (Capacitor): notificação do treino, alarme e tela ligada ---------- */
-function natListen() { if (natHeard) return; const fn = natP('FerroNotif'); if (!fn) return; natHeard = true; try { fn.addListener('action', a => natAct(a && a.action)); fn.addListener('hr', a => wearBpm(a && a.bpm)); } catch (e) { natHeard = false; } }
+function natListen() { if (natHeard) return; const fn = natP('FerroNotif'); if (!fn) return; natHeard = true; try { fn.addListener('action', a => natAct(a && a.action, a && a.at)); fn.addListener('hr', a => wearBpm(a && a.bpm)); } catch (e) { natHeard = false; } }
 /* relógio: batimentos a cada ~5 s durante o treino; guardados no treino para a FC média (total e de cada série de cardio) */
 function wearBpm(b) { b = +b; if (!run || run.phase === 'done' || !(b >= 30 && b <= 230)) return; (run.hrLog = run.hrLog || []).push([Date.now(), b]); if (run.hrLog.length > 3000) run.hrLog.splice(0, 500); run.hrLast = b; run.hrAt = Date.now(); clearTimeout(wearBpm.t); wearBpm.t = setTimeout(persistRun, 3000); const el = document.getElementById('hrlive'); if (el) el.textContent = '♥ ' + b; else if (view.n === 'run') render(); }
 const hrAvgIn = (a, b) => { const l = ((run && run.hrLog) || []).filter(x => x[0] >= a && x[0] <= b); return l.length >= 2 ? Math.round(l.reduce((t, x) => t + x[1], 0) / l.length) : null; };
@@ -1979,7 +1980,21 @@ function natInit() {
   })();
   return natInitP;
 }
-function natAct(raw) {
+/* toque na notificação ou no relógio. "at" = hora do toque no Android: se a página estava dormindo e só recebeu depois,
+   o toque é aplicado com a hora em que aconteceu (o descanso conta desde o toque, não desde a volta ao app) */
+let natMute = false;
+function natAct(raw, at) {
+  if (!run || run.phase === 'done') return;
+  const tick = String(raw || '').split(':')[0] === 'tick', lag = at ? Date.now() - at : 0;
+  if (!tick && at) natCall('ack', {at});
+  if (tick || !(lag > 400 && lag < 6 * 3600000)) return natActDo(raw);
+  const real = Date.now, t0 = Math.max(at, run.phaseStart || 0);
+  natMute = lag > 3000; Date.now = () => t0;
+  try { natActDo(raw); } finally { Date.now = real; natMute = false; }
+  if (run && run.phase !== 'done') { runDue(2); natLast = ''; clearTimeout(natT); natPush(); }
+  if (view.n === 'run') render();
+}
+function natActDo(raw) {
   if (!run || run.phase === 'done') return;
   if (String(raw || '').startsWith('adj|')) { const [, r, k, ei, si] = String(raw).split('|'), e = run.exs[+ei], st = e && e.sets[+si]; remindStop(); if (st && e.type !== 'time') { st.reps = Math.max(0, Math.round(+r) || 0); st.kg = Math.max(0, Math.round((+k || 0) * 10000) / 10000); persistRun(); toast('Série ajustada no relógio'); } natLast = ''; clearTimeout(natT); natPush(); if (view.n === 'run') render(); return; }
   const [id, stamp] = String(raw || '').split(':');
@@ -2132,13 +2147,13 @@ async function natAlarmSync() {
 }
 /* teste de som com a tela apagada (Ajustes): some com a notificação do teste quando ele acaba */
 function natTestDone() { if (!natTestEnd || Date.now() < natTestEnd) return; natTestEnd = 0; if (!run || run.phase === 'done') natCall('hide'); }
-document.addEventListener('visibilitychange', () => { if (NAT) natFg = document.visibilityState === 'visible'; if (NAT && document.visibilityState === 'visible') { natClearAlert(); natTestDone(); } if (NAT && run && run.phase !== 'done') natAlarmSync(); });
+document.addEventListener('visibilitychange', () => { if (NAT && run && run.phase !== 'done') natAlarmSync(); });
 if (NAT) { natListen(); natCfg(); }
 if (NAT && run && run.phase !== 'done') setTimeout(() => natInit().then(natSync), 300);
 if (NAT && natP('App')) try {
   natP('App').addListener('appStateChange', st => {
     natFg = !!(st && st.isActive);
-    if (natFg) natTestDone();
+    if (natFg) { natTestDone(); natClearAlert(); }
     if (!run || run.phase === 'done') return;
     if (natFg) { natClearAlert(); if (runDue(2)) render(); natKey = null; natAlarm = -1; natLast = ''; natPush(); }
     else { natKey = null; natAlarm = -1; natLast = ''; natPush(); }
@@ -2230,7 +2245,7 @@ function beep(n = 1) {
     holdAudio(n * 300 + 1200);
   } catch (e) {}
 }
-function buzz() { if (S.settings.vibrate) try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (e) {} }
+function buzz() { if (!S.settings.vibrate) return; if (natFn() && natFn().vibrate) return void natCall('vibrate'); try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (e) {} }
 function startRun(w, rname) {
   const tw = tempoOf({}, w), exs = w.exercises.map(c => buildRunEx(Object.assign({}, c, {tempoW: tw})));
   const warm = S.settings.warmup && exs[0] && exs[0].type !== 'time';
@@ -2342,6 +2357,7 @@ function runNext() {
     run.exIdx = t[0]; run.setIdx = t[1];
     run.exs[t[0]].restFrom = restFor;
     setPhase('rest'); run.restTotal = restFor * 1000;
+    if (S.settings.continuous && restFor >= 2) { const pr = curPrep(); if (pr > 0) { const p2 = Math.min(pr, restFor - 1); if (p2 < pr) run.prepOv = p2; run.restTotal = (restFor - p2) * 1000; } }
   } else if (ph === 'rest') { const used = elapsed(), tot = run.restTotal; setPhase(prepPh()); if (run.prevPtr) run.lastRest = {left: Math.max(0, tot - used), ptr: run.prevPtr.join(',')}; }
   persistRun(); render();
 }
@@ -2659,7 +2675,7 @@ function tickSheet() {
 }
 /* fase com tempo vencido (descanso, preparo, série por tempo): avança. Com o app em segundo plano o relógio da página
    pode atrasar ou parar; o alarme nativo e os toques na notificação chamam isto para o treino nunca ficar para trás */
-const natQuiet = () => NAT && (!natFg || document.visibilityState === 'hidden');   // em segundo plano quem toca é o alarme nativo
+const natQuiet = () => NAT && !natFg;   // em segundo plano quem toca é o alarme nativo
 /* quanto a fase atual (descanso/preparo) já passou do tempo */
 function addTime() {
   if (!run) return; const el = elapsed(); remindStop();
@@ -2705,7 +2721,7 @@ document.addEventListener('click', () => remindStop(), true);
 setInterval(() => {
   if (!run || run.phase === 'done' || run.pausedAt) return;
   const v = phaseView(), master = natMaster();   // no app Android a contagem e os lembretes saem da linha do tempo nativa
-  if (!master && v.P === 'prepare' && v.count && !(NAT && document.visibilityState === 'hidden')) { const sl = Math.ceil(v.rem / 1000), key = run.phaseStart + ':' + sl; if (sl >= 1 && sl <= S.settings.countFrom && sl < Math.max(1, curPrep()) && run.lastCount !== key) { run.lastCount = key; countSnd(sl); } }
+  if (!master && v.P === 'prepare' && v.count && !(NAT && !natFg)) { const sl = Math.ceil(v.rem / 1000), key = run.phaseStart + ':' + sl; if (sl >= 1 && sl <= S.settings.countFrom && sl < Math.max(1, curPrep()) && run.lastCount !== key) { run.lastCount = key; countSnd(sl); } }
   if (runDue()) { if (NAT) { natLast = ''; natPush(); } if (view.n === 'run') render(); return; }
   if (!master && run.remind && (run.phase === 'rest' || run.phase === 'prepare') && !natQuiet()) { const due = run.remind.from + (7 - run.remind.n) * remMs(); if (Date.now() >= due) { if (run.phase === 'rest') restEndSound(); else startSound(); if (--run.remind.n <= 0) run.remind = null; } }
   else if (run.remind && run.phase !== 'rest' && run.phase !== 'prepare') run.remind = null;
@@ -3045,7 +3061,7 @@ const H = {
     const out = st.headset ? `Fone ou Bluetooth · mídia ${st.mediaVol}/${st.mediaMax}` : `Alto-falante · alarme ${st.alarmVol}/${st.alarmMax}${up > st.alarmVol ? `, sobe para ${up} no aviso` : ''}`;
     const busy = !!(run && run.phase !== 'done');
     modal(`<h2>Diagnóstico de som</h2>
-    <div>${row('Saída agora', out, st.headset && st.mediaVol === 0)}${row('Reforço', st.boostMb > 0 ? '+' + fmtN(st.boostMb / 100) + ' dB' : 'desligado')}${row('Voz da contagem', st.tts ? (st.ttsPt ? 'pronta' : 'pronta, sem português') : 'indisponível (usa o bipe)', !st.tts)}${row('Alarmes exatos', st.exact ? 'permitidos' : 'não permitidos', !st.exact)}${row('Notificações', st.notif ? 'permitidas' : 'bloqueadas', !st.notif)}${row('Não perturbe', st.dnd > 1 ? 'ligado (pode calar os avisos)' : 'desligado', st.dnd > 1)}${row('Bateria do app', st.battery ? 'sem restrição' : 'otimizada (padrão)')}</div>
+    <div>${row('Saída agora', out, st.headset && st.mediaVol === 0)}${row('Reforço', st.boostMb > 0 ? '+' + fmtN(st.boostMb / 100) + ' dB' : 'desligado')}${row('Voz da contagem', st.tts ? (st.ttsPt ? 'pronta' : 'pronta, sem português') : 'indisponível (usa o bipe)', !st.tts)}${row('Alarmes exatos', st.exact ? 'permitidos' : 'não permitidos', !st.exact)}${row('Notificações', st.notif ? 'permitidas' : 'bloqueadas', !st.notif)}${row('Não perturbe', st.dnd > 1 ? 'ligado (pode calar os avisos)' : 'desligado', st.dnd > 1)}${row('Bateria do app', st.battery ? 'sem restrição' : 'otimizada (padrão)')}${st.bgActs ? row('Botões em 2º plano', st.bgWaiting ? `${st.bgAcks} de ${st.bgActs} respondidos; o último ficou sem resposta` : `${st.bgAcks} de ${st.bgActs} respondidos, em até ${st.bgWorst < 1000 ? st.bgWorst + ' ms' : fmtN(Math.round(st.bgWorst / 100) / 10) + ' s'}`, st.bgWaiting || st.bgAcks < st.bgActs || st.bgWorst > 3000) : ''}</div>
     ${st.battery ? '' : '<p class="small muted" style="margin:12px 0 0">Se algum aviso falhar com a tela apagada, tire a restrição de bateria do app: Configurações do Android › Apps › Diário de Ferro › Bateria › Irrestrito.</p>'}
     <p class="small muted" style="margin:12px 0">Teste com a tela apagada: toque no botão e apague a tela. Em 8 s toca o fim do descanso, depois a contagem e, aos 13 s, o som de início.</p>
     <div style="display:flex;flex-direction:column;gap:10px"><button class="btn primary" data-act="sndBgTest"${busy ? ' disabled' : ''}>${busy ? 'Teste bloqueado durante o treino' : 'Testar com a tela apagada'}</button><button class="btn" data-act="closeModal">Fechar</button></div>`);
@@ -3290,7 +3306,7 @@ if (!inClaude() && navigator.storage && navigator.storage.persist) navigator.sto
 </script>
 
 <script>
-if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202611192040').catch(() => {});
+if (!window.Capacitor && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js?v=202611221429').catch(() => {});
 </script>
 </body>
 </html>
